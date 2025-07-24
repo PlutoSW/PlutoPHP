@@ -1,0 +1,117 @@
+#!/usr/bin/env php
+<?php
+
+namespace Pluto\Core\CMD;
+
+
+$options = getopt('m:e:t:cd:h', ['module:', 'endpoint:', 'type:', 'clearlogs', 'days:', 'help', 'tablename:', 'moduleToDb:']);
+
+$options = [
+    'module' => isset($options['module']) ? $options['module'] : (isset($options["m"]) ? $options["m"] : null),
+    'endpoint' => isset($options['endpoint']) ? $options['endpoint'] : (isset($options['e']) ? $options['e'] : false),
+    'type' => isset($options['type']) ? $options['type'] : (isset($options['t']) ? $options['t'] : null),
+    'clearlogs' => isset($options['clearlogs']) || isset($options['c']),
+    'days' => isset($options['days']) ? $options['days'] : (isset($options['d']) ? $options['d'] : null),
+    'tablename' => isset($options['tablename']) ? $options['tablename'] : null,
+    'help' => isset($options['help']) || isset($options['h'])
+];
+
+
+$command = match (true) {
+    isset($options["module"]), isset($options["module"]) => "module",
+    $options["clearlogs"], isset($options["c"]) => "clearlogs",
+    $options["help"], isset($options["h"]) => "help",
+    default => null
+};
+
+require_once __DIR__ . '/src/autoload.php';
+
+use Pluto\Autoloader;
+
+Autoloader::register();
+
+switch ($command) {
+    case 'module':
+        if (!$options['module']) {
+            echo 'Module name is required';
+            exit(0);
+        }
+        if (!$options['type']) {
+            $options['type'] = 'template';
+        }
+
+        if ($options['endpoint'] === false) {
+            $options['endpoint'] = \strtolower($options['module']);
+        }
+        if (isset($options['tablename'])) {
+            $options['tablename'] = $options['tablename'];
+        } else {
+            $options['tablename'] = \strtolower($options['module']);
+        }
+
+        new ModuleGenerator($options['module'], ['type' => $options['type'], 'endpoint' => $options['endpoint'], 'tablename' => $options['tablename']]);
+        break;
+    case 'clearlogs':
+        $storage = new \Pluto\Core\Storage();
+        $storage->setPath("logs");
+        foreach ($storage->files() as $file) {
+            $day = (isset($options['days'])) ? $options['days'] : "all";
+            if ($day == "all") {
+                $storage->unlink($file);
+            } else {
+                $second = \strtotime($day . " days ago");
+                if ($storage->fileMtime($file) < $second) {
+                    $storage->unlink($file);
+                }
+            }
+        }
+        break;
+
+    case 'help':
+        $helpText = [
+            "Usage: php pluto [options]",
+            "",
+            "-m  <string>   \033[96mCreate a new Module\033[0m",
+            "-e  <string>   \033[96mEndpoint\033[0m",
+            "-t  <string>   \033[96mType\033[0m",
+            "-c     \033[96mClear log\033[0ms",
+            "-d  <int>   \033[96mDays\033[0m",
+            "-h     \033[96mHelp\033[0m",
+            "",
+            "",
+            "--module  <string>   \033[96mCreate a new Module\033[0m",
+            "--endpoint  <string>   \033[96mEndpoint\033[0m",
+            "--type  <string>   \033[96mType\033[0m",
+            "--clearlogs  \033[96mClear logs\033[0m",
+            "--days   <int>    \033[96mDays\033[0m",
+            "--tablename   <string>    \033[96mTable name\033[0m",
+            "--help       \033[96mHelp\033[0m",
+            "",
+            "",
+            "\033[33mExamples\033[0m\n",
+            "php pluto -m Dashboard -t template -e dashboard --tablename dashboard    \033[96mCreate new module named Dashboard with html template\033[0m",
+            "php pluto --module Dashboard --type template --endpoint dashboard --tablename dashboard     \033[96mCreate new module named Dashboard with html template\033[0m",
+            "php pluto -m Dashboard -t api -e dashboard --tablename dashboard     \033[96mCreate new module named Dashboard as api. Http response will be json\033[0m",
+            "php pluto --module Dashboard --type api  --endpoint dashboard --tablename dashboard     \033[96mCreate new module named Dashboard as api. Http response will be json\033[0m",
+            "php pluto -m Dashboard     \033[96mCreate new module named Dashboard with html template as default\033[0m",
+            "php pluto --module Dashboard    \033[96mCreate new module named Dashboard with html template as default\033[0m",
+            "",
+            "",
+            "php pluto -c      \033[96mClear All logs\033[0m",
+            "php pluto --clearlogs     \033[96mClear All logs\033[0m",
+            "php pluto -c -d 7      \033[96mClear logs older than 7 days\033[0m",
+            "php pluto --clearlogs -d 7      \033[96mClear logs older than 7 days\033[0m",
+            "",
+            "",
+            "php pluto -h       \033[96mShow help\033[0m",
+            "php pluto --help       \033[96mShow help\033[0m\n"
+        ];
+        echo implode("\n", $helpText);
+        break;
+
+    default:
+        echo 'Invalid method. Use -h or --help for help';
+        break;
+}
+
+?>
