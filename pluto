@@ -3,8 +3,9 @@
 
 namespace Pluto\Core\CMD;
 
+use Pluto\Core\CMD\MigrationGenerator\MG;
 
-$options = getopt('m:e:t:cd:h', ['module:', 'endpoint:', 'type:', 'clearlogs', 'days:', 'help', 'tablename:', 'moduleToDb:']);
+$options = getopt('m:e:t:cd:h', ['module:', 'endpoint:', 'type:', 'clearlogs', 'days:', 'help', 'tablename:', 'migration:','migrate']);
 
 $options = [
     'module' => isset($options['module']) ? $options['module'] : (isset($options["m"]) ? $options["m"] : null),
@@ -13,7 +14,8 @@ $options = [
     'clearlogs' => isset($options['clearlogs']) || isset($options['c']),
     'days' => isset($options['days']) ? $options['days'] : (isset($options['d']) ? $options['d'] : null),
     'tablename' => isset($options['tablename']) ? $options['tablename'] : null,
-    'help' => isset($options['help']) || isset($options['h'])
+    'help' => isset($options['help']) || isset($options['h']),
+    'migration' => isset($options['migration']) ? $options['migration'] : null
 ];
 
 
@@ -21,6 +23,7 @@ $command = match (true) {
     isset($options["module"]), isset($options["module"]) => "module",
     $options["clearlogs"], isset($options["c"]) => "clearlogs",
     $options["help"], isset($options["h"]) => "help",
+    $options["migration"], isset($options["migration"]) => "migration",
     default => null
 };
 
@@ -65,6 +68,16 @@ switch ($command) {
                 }
             }
         }
+        break;
+
+    case 'migration':
+        if (!$options['migration']) {
+            echo 'Migration name is required';
+            exit(0);
+        }
+
+        $mg = new MG($options['migration']);
+        echo $mg->getSqlString();
         break;
 
     case 'help':
