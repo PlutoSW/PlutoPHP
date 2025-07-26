@@ -42,4 +42,16 @@ class Schema
 
         return new self();
     }
+
+    public static function drop($name)
+    {
+        if (empty($name)) {
+            throw new \InvalidArgumentException("Schema name cannot be empty.");
+        }
+
+        $name = trim($name);
+        self::$sqlString = "DROP TABLE IF EXISTS `{$name}`;" . PHP_EOL;
+
+        return new self();
+    }
 }

@@ -36,8 +36,12 @@ class MG
         if ($this->updateTableName) {
             $this->schema = Schema::update($this->tableName, function (Table $table) {
                 $table->string('name')->nullable();
-                $table->text('description')->comment("Updated description of the table");
+                $table->string('description')->comment("Updated description of the table");
             });
+        }
+
+        if ($this->deleteTableName) {
+            $this->schema = Schema::drop($this->tableName);
         }
     }
 
@@ -54,7 +58,7 @@ class MG
         match (true) {
             $this->isCreateMigration() => $this->tableName = $this->createTableName,
             $this->isUpdateMigration() => $this->tableName = $this->updateTableName,
-            $this->isDeleteMigration() => $this->tableName = $this->deleteTableName,
+            $this->isDropMigration() => $this->tableName = $this->deleteTableName,
             default => false
         };
     }
@@ -78,10 +82,10 @@ class MG
         return false;
     }
 
-    private function isDeleteMigration(): bool
+    private function isDropMigration(): bool
     {
-        if (strpos($this->migrationName, 'delete') === 0) {
-            $this->deleteTableName = str_replace(['delete_', '_table'], '', $this->migrationName);
+        if (strpos($this->migrationName, 'drop') === 0) {
+            $this->deleteTableName = str_replace(['drop_', '_table'], '', $this->migrationName);
             return true;
         }
         return false;

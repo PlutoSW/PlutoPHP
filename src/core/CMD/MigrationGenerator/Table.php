@@ -23,7 +23,7 @@ class Table
         if ($type === "create") {
             $this->schema::$sqlString = "CREATE TABLE IF NOT EXISTS `$this->table` ( " . PHP_EOL . "  ";
         } elseif ($type === "update") {
-            $this->schema::$sqlString = "ALTER TABLE `$this->table` ";
+            $this->schema::$sqlString = "ALTER TABLE `$this->table`". PHP_EOL;
         } elseif ($type === "delete") {
             $this->schema::$sqlString = "DROP TABLE IF EXISTS `$this->table`;" . PHP_EOL;
         } else {
@@ -58,6 +58,7 @@ class Table
     public function id(): Line
     {
         $line = new Line('id', 'INT AUTO_INCREMENT PRIMARY KEY');
+
         $this->sqlLines[] = $line;
         return $line;
     }
@@ -133,7 +134,13 @@ class Table
 
     public function __destruct()
     {
-        $this->schema::$sqlString .= implode("," . PHP_EOL . "  ", $this->sqlLines) . "\n";
+
+        foreach ($this->sqlLines as $line) {
+            if ($this->type === "update") {
+                $this->schema::$sqlString .= "CHANGE `{$line->name()}` `{$line->name()}` {$line->type()} " . implode(' ', $line->options()) . ", " . PHP_EOL;
+                continue;
+            }
+        }
 
         if ($this->type === "create") {
             $this->schema::$sqlString .= ") ENGINE=$this->engine DEFAULT CHARSET=$this->charset COLLATE=$this->collation";
@@ -142,9 +149,8 @@ class Table
             }
             $this->schema::$sqlString .= ";" . PHP_EOL . \PHP_EOL;
         } elseif ($this->type === "update") {
-            $this->schema::$sqlString .= ";";
+            $this->schema::$sqlString = rtrim($this->schema::$sqlString, ", ".PHP_EOL) . ";". PHP_EOL;
         } elseif ($this->type === "delete") {
-            // No additional SQL needed for delete
         }
     }
 }
@@ -161,6 +167,21 @@ class Line
         $this->name = $name;
         $this->type = $type;
         $this->options = $options;
+    }
+
+    public function type()
+    {
+        return $this->type;
+    }
+
+    public function name()
+    {
+        return $this->name;
+    }
+
+    public function options()
+    {
+        return $this->options;
     }
 
     public function nullable()
