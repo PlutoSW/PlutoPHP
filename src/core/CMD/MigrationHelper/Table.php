@@ -1,19 +1,18 @@
 <?php
 
-namespace Pluto\Core\CMD\MigrationGenerator;
+namespace Pluto\Core\CMD\MigrationHelper;
 
 class Table
 {
+
     private $schema;
     private $table;
     private $sqlLines = [];
     private $engine = 'InnoDB';
     private $charset = 'utf8mb4';
     private $collation = 'utf8mb4_unicode_ci';
-
     private $comment;
     private $type;
-
 
     public function __construct($schema, $type = "create")
     {
@@ -23,12 +22,19 @@ class Table
         if ($type === "create") {
             $this->schema::$sqlString = "CREATE TABLE IF NOT EXISTS `$this->table` ( " . PHP_EOL . "  ";
         } elseif ($type === "update") {
-            $this->schema::$sqlString = "ALTER TABLE `$this->table`". PHP_EOL;
+            $this->schema::$sqlString = "ALTER TABLE `$this->table`" . PHP_EOL;
         } elseif ($type === "delete") {
             $this->schema::$sqlString = "DROP TABLE IF EXISTS `$this->table`;" . PHP_EOL;
         } else {
             throw new \InvalidArgumentException("Invalid type provided. Use 'create', 'update', or 'delete'.");
         }
+    }
+
+    public function rename($newName): self
+    {
+        $this->schema::$sqlString = "ALTER TABLE `{$this->table}` RENAME TO `{$newName}`;" . PHP_EOL;
+        $this->table = $newName;
+        return $this;
     }
 
     public function engine($engine = 'InnoDB'): self
@@ -55,11 +61,10 @@ class Table
         return $this;
     }
 
-    public function id(): Line
+    public function id($length = 11): Line
     {
-        $line = new Line('id', 'INT AUTO_INCREMENT PRIMARY KEY');
-
-        $this->sqlLines[] = $line;
+        $line = new Line('id', "INT($length)");
+        $this->sqlLines[] = $line->autoIncrement()->primaryKey()->unsigned()->nullable(false);
         return $line;
     }
 
@@ -132,32 +137,12 @@ class Table
         return $line;
     }
 
-    public function __destruct()
-    {
-
-        foreach ($this->sqlLines as $line) {
-            if ($this->type === "update") {
-                $this->schema::$sqlString .= "CHANGE `{$line->name()}` `{$line->name()}` {$line->type()} " . implode(' ', $line->options()) . ", " . PHP_EOL;
-                continue;
-            }
-        }
-
-        if ($this->type === "create") {
-            $this->schema::$sqlString .= ") ENGINE=$this->engine DEFAULT CHARSET=$this->charset COLLATE=$this->collation";
-            if ($this->comment) {
-                $this->schema::$sqlString .= " COMMENT='{$this->comment}'";
-            }
-            $this->schema::$sqlString .= ";" . PHP_EOL . \PHP_EOL;
-        } elseif ($this->type === "update") {
-            $this->schema::$sqlString = rtrim($this->schema::$sqlString, ", ".PHP_EOL) . ";". PHP_EOL;
-        } elseif ($this->type === "delete") {
-        }
-    }
+    public function __destruct() {}
 }
-
 
 class Line
 {
+
     private $name;
     private $type;
     private $options;
@@ -184,9 +169,13 @@ class Line
         return $this->options;
     }
 
-    public function nullable()
+    public function nullable(bool $nullable = true)
     {
-        $this->options[] = 'NULL';
+        if ($nullable) {
+            $this->options[] = 'NULL';
+        } else {
+            $this->options[] = 'NOT NULL';
+        }
         return $this;
     }
 
@@ -231,7 +220,6 @@ class Line
         $this->options[] = 'PRIMARY KEY';
         return $this;
     }
-
 
     public function primary()
     {
