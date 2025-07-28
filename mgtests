@@ -1,0 +1,15 @@
+ALTER TABLE `ss` 
+    CHANGE `id` `id` INT(11) NOT NULL AUTO_INCREMENT, 
+    add PRIMARY KEY (`id`), CHANGE `name` `name` VARCHAR(255) NOT NULL, 
+    CHANGE `comment` `comment` TEXT NOT NULL, 
+    CHANGE `test` `test` JSON NOT NULL;
+
+
+CREATE TABLE `rr` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT, 
+    `name` VARCHAR(255) NOT NULL, 
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `test` INT NOT NULL, 
+    PRIMARY KEY (`id`),
+    INDEX (`test`)
+) ENGINE = InnoDB;
