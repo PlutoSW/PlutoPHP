@@ -35,8 +35,6 @@ $command = match (true) {
 require_once __DIR__ . '/src/autoload.php';
 
 use Pluto\Autoloader;
-use Pluto\Core\CMD\MigrationHelper\MG;
-use Pluto\Core\CMD\MigrationHelper\Migrate;
 
 Autoloader::register();
 
@@ -76,33 +74,6 @@ switch ($command) {
             }
         }
         break;
-
-    case 'clear_migrations':
-        $storage = new \Pluto\Core\Storage();
-        $storage->setPath("migrations");
-        foreach ($storage->files() as $file) {
-            $storage->unlink($file);
-        }
-        break;
-    case 'migration':
-        if (!$options['migration']) {
-            echo 'Migration name is required';
-            exit(0);
-        }
-        $mg = new MG($options['migration']);
-        //echo $mg->getSqlString();
-        break;
-
-    case 'migrate':
-        $migrate = new Migrate();
-        $migrate->up();
-        break;
-
-    case 'rollback':
-        $migrate = new Migrate();
-        $migrate->down();
-        break;
-
     case 'help':
         $helpText = [
             "Usage: php pluto [options]",
