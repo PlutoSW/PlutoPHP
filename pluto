@@ -4,7 +4,7 @@
 namespace Pluto\Core\CMD;
 
 
-$options = getopt('m:e:t:cd:h', ['module:', 'endpoint:', 'type:', 'clearlogs', 'days:', 'help', 'tablename:', 'migration:', 'migrate', 'rollback::', 'clear_migrations']);
+$options = getopt('m:e:t:cd:h', ['module:', 'endpoint:', 'type:', 'clearlogs', 'days:', 'help', 'tablename:']);
 
 $options = [
     'module' => isset($options['module']) ? $options['module'] : (isset($options["m"]) ? $options["m"] : null),
@@ -14,10 +14,6 @@ $options = [
     'days' => isset($options['days']) ? $options['days'] : (isset($options['d']) ? $options['d'] : null),
     'tablename' => isset($options['tablename']) ? $options['tablename'] : null,
     'help' => isset($options['help']) || isset($options['h']),
-    'migration' => isset($options['migration']) ? $options['migration'] : null,
-    'migrate' => isset($options['migrate']) ? $options['migrate'] : null,
-    'rollback' => isset($options['rollback']) ? $options['rollback'] : null,
-    'clear_migrations' => isset($options['clear_migrations']) ? $options['clear_migrations'] : null,
 ];
 
 
@@ -25,10 +21,6 @@ $command = match (true) {
     isset($options["module"]), isset($options["module"]) => "module",
     $options["clearlogs"], isset($options["c"]) => "clearlogs",
     $options["help"], isset($options["h"]) => "help",
-    $options["migration"], isset($options["migration"]) => "migration",
-    $options["migrate"], isset($options["migrate"]) => "migrate",
-    $options["rollback"], isset($options["rollback"]) => "rollback",
-    $options["clear_migrations"], isset($options["clear_migrations"]) => "clear_migrations",
     default => null
 };
 
