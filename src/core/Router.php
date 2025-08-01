@@ -243,7 +243,7 @@ class Router
                     $controller = new $class($params);
                     if (!$controller::hasPermission($class, $method)) {
                         if ($responseType == "send") {
-                            return (new Response())->template([], "no_auth", 403)->send();
+                            return (new Response())->template([], "errors/403", 403)->send();
                         } else {
                             return (new Response())->error("Permission denied", 403)->json();
                         }
@@ -260,7 +260,7 @@ class Router
                 }
             }
             if ($_SERVER['HTTP_SEC_FETCH_MODE'] == "navigate") {
-                return (new Response())->template([],  "404", 404)->send();
+                return (new Response())->template([],  "errors/404", 404)->send();
             } else {
                 return (new Response())->error("404 Not Found", 404)->json();
             }
