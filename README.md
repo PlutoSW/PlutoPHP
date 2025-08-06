@@ -227,7 +227,7 @@ Functions are helpers that can be called directly within your templates. They ar
 ```twig
 {% if $user.is_logged_in %}
     <p>Welcome, {{ $user.name }}</p>
-{% elseif $user.is_guest %}
+{% elseif $user->is_guest %}
     <p>Hello guest!</p>
 {% else %}
     <p><a href="/login">Login</a> or <a href="/register">Register</a></p>
@@ -290,7 +290,7 @@ Include common snippets (header/footer) with PHP’s `include` or your own helpe
 ### CLI – Module generator
 
 ```
-$ php pluto -m Blog -t template -e blog --tablename posts 
+$ php pluto -m Blog -t template -e blog --table posts 
 ```
 
 Creates:

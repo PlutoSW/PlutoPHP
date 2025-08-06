@@ -10,7 +10,7 @@ class Logger
 
         $path = __DIR__ . '/../../storage/logs/';
         if (!file_exists($path)) {
-            mkdir($path, 0777);
+            mkdir($path, 0777, true);
         }
         $file = 'log_' . date("Y-m-d") . '.log';
         if (\file_exists($file) && \filesize($path . $file) > 1000000) {

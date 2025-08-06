@@ -32,8 +32,8 @@ class Response
     public function template($context, $page, $code = 200): Response
     {
         $this->code = $code;
-        $GLOBALS["global"]->controller = $this->context;
-        $this->response = Template::view($page, $context);
+        System::$global->controller = $this->context;
+        $this->response = Template\Template::view($page, $context);
         return $this;
     }
     public function json(): void
@@ -56,6 +56,7 @@ class Response
     public function redirect($url)
     {
         (new Router())->go($url);
+        exit;
     }
 
     public function __get($name)

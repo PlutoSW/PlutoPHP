@@ -8,8 +8,8 @@ class Storage
     private $path = '/';
     public function __construct()
     {
-        if (!file_exists($this->path)) {
-            mkdir($this->path, 0777);
+        if (!file_exists($this->storage)) {
+            mkdir($this->storage, 0777);
         }
     }
 
@@ -20,11 +20,16 @@ class Storage
 
     public function setPath($path)
     {
-        $path = \trim($path, '/');
-        $this->path = $this->storage . "/" . $path . '/';
-        if (!file_exists($this->path)) {
-            mkdir($this->path, 0777);
+        try {
+            $path = \trim($path, '/');
+            $this->path = $this->storage . "/" . $path . '/';
+            if (!file_exists($this->path)) {
+                @mkdir($this->path, 0777, true);
+            }
+        } catch (\Throwable $th) {
+            throw new \Exception($th->getMessage(), $th->getCode(), $th);
         }
+
         return $this;
     }
 
@@ -105,5 +110,24 @@ class Storage
     {
         $host = \getenv('HOST');
         return $host . $this->realPath($file);
+    }
+
+    public function uploadingFiles($uploadField = "images")
+    {
+
+        $file_post = isset($_FILES[$uploadField]) ? $_FILES[$uploadField] : array();
+        if(isset($file_post['name'])) return [$file_post];
+        if (!\count($file_post)) return [];
+        $file_ary = array();
+        $file_count = count($file_post['name']);
+        $file_keys = array_keys($file_post);
+
+        for ($i = 0; $i < $file_count; $i++) {
+            foreach ($file_keys as $key) {
+                $file_ary[$i][$key] = $file_post[$key][$i];
+            }
+        }
+
+        return $file_ary;
     }
 }

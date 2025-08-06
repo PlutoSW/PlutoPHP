@@ -16,7 +16,8 @@ class System
     public static $data;
     public static $urlParams;
     public static $currentUser = null;
-    public static $beforeInit = null;
+    public static $global = null;
+    public static $afterInit = null;
     public static $router = null;
     public static $language = null;
     public static $permissions = null;
@@ -31,13 +32,13 @@ class System
             self::$data = self::data();
             self::$urlParams = (object)$_GET;
             self::$permissions = (object)["*" => true];
-
+            self::$global = new \stdClass();
             self::$router = new Router();
             self::$language = new Language();
 
 
-            if (\is_callable(self::$beforeInit)) {
-                call_user_func(self::$beforeInit, self::class);
+            if (\is_callable(self::$afterInit)) {
+                call_user_func(self::$afterInit, self::class);
             }
         } catch (\Throwable $th) {
             new Error("System initialize error.", $th->getCode(), $th);
@@ -75,9 +76,9 @@ class System
      * @param callable $callback
      * @return void
      */
-    public static function setBeforeInit($callback): void
+    public static function setafterInit($callback): void
     {
-        self::$beforeInit = $callback;
+        self::$afterInit = $callback;
     }
 
     private static function getEnv()
@@ -128,7 +129,7 @@ class System
             return (object)$_POST;
         }
     }
-    
+
     /**
      * @param string|int $number
      * @return string
@@ -190,5 +191,16 @@ class System
         }
 
         return $ip;
+    }
+
+    public static function uuid(): string
+    {
+        $data = $data ?? \random_bytes(16);
+        assert(strlen($data) == 16);
+
+        $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+        $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+
+        return vsprintf('%s-%s-%s%s', str_split(bin2hex($data), 4));
     }
 }

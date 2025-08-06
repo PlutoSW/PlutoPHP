@@ -7,7 +7,7 @@ class Language
     private $language;
     private $data;
     private $file;
-    public function __construct($language = "en")
+    public function __construct($language = "tr")
     {
         $this->language = $language;
         $this->file = __DIR__ . "/../../storage/languages/$this->language.json";

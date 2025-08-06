@@ -67,7 +67,7 @@ class Table
      */
     private function setQueryFrom()
     {
-        $this->from = " FROM ".self::required($this->raw_query, "from");
+        $this->from = " FROM " . self::required($this->raw_query, "from");
     }
 
     /**
@@ -93,7 +93,7 @@ class Table
                 $this->where = is_null($where) ? " WHERE $searchable_where " :  " WHERE $where AND (" . implode(" OR ", $searchable_columns_statements) . ")";
             }
         } else {
-            $this->where = is_null($where) ? "" : " WHERE ".$where;
+            $this->where = is_null($where) ? "" : " WHERE " . $where;
         }
     }
 
@@ -148,7 +148,13 @@ class Table
 
     private function setTotalRows()
     {
-        $where = " WHERE ".self::optional($this->raw_query, "where");
+        $optionalWhere = self::optional($this->raw_query, "where");
+        if (!is_null($optionalWhere)) {
+            $where = " WHERE " . self::optional($this->raw_query, "where");
+        } else {
+            $where = "";
+        }
+
         $params = self::optional($this->raw_query, "params", array());
 
         $sql = "SELECT COUNT(*) {$this->from} $where";
@@ -197,10 +203,14 @@ class Table
             $nestedData = array();
 
             // get column's index
-            
+
             foreach ($this->columns as $index => $value) {
                 $value = \explode(".", $value);
                 $value = (isset($value[1]) && $value[1]) ? $value[1] : $value[0];
+                if(!isset($row[$value])) {
+                    $nestedData[] = null;
+                    continue;
+                }
                 $nestedData[] = $row[$value];
             }
 
@@ -272,7 +282,6 @@ class Table
     public function search()
     {
         $sql =  $this->select . $this->from . $this->where . $this->sorting . $this->paging;
-        
         $stmt  = $this->conn->prepare($sql);
 
         $stmt->execute($this->params);

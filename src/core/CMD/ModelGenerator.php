@@ -83,7 +83,7 @@ use Pluto\Core\System;
 
 class ' . $this->moduleName . ' extends \Pluto\Core\Model
 {
-    static $_tablename = "' . $this->options["tablename"] . '";
+    static $table = "' . $this->options["table"] . '";
 }
 ?>';
         return $template;

@@ -4,7 +4,7 @@
 namespace Pluto\Core\CMD;
 
 
-$options = getopt('m:e:t:cd:h', ['module:', 'endpoint:', 'type:', 'clearlogs', 'days:', 'help', 'tablename:']);
+$options = getopt('m:e:t:cd:h', ['module:', 'endpoint:', 'type:', 'clearlogs', 'days:', 'help', 'table:']);
 
 $options = [
     'module' => isset($options['module']) ? $options['module'] : (isset($options["m"]) ? $options["m"] : null),
@@ -12,7 +12,7 @@ $options = [
     'type' => isset($options['type']) ? $options['type'] : (isset($options['t']) ? $options['t'] : null),
     'clearlogs' => isset($options['clearlogs']) || isset($options['c']),
     'days' => isset($options['days']) ? $options['days'] : (isset($options['d']) ? $options['d'] : null),
-    'tablename' => isset($options['tablename']) ? $options['tablename'] : null,
+    'table' => isset($options['table']) ? $options['table'] : null,
     'help' => isset($options['help']) || isset($options['h']),
 ];
 
@@ -43,13 +43,13 @@ switch ($command) {
         if ($options['endpoint'] === false) {
             $options['endpoint'] = \strtolower($options['module']);
         }
-        if (isset($options['tablename'])) {
-            $options['tablename'] = $options['tablename'];
+        if (isset($options['table'])) {
+            $options['table'] = $options['table'];
         } else {
-            $options['tablename'] = \strtolower($options['module']);
+            $options['table'] = \strtolower($options['module']);
         }
 
-        new ModuleGenerator($options['module'], ['type' => $options['type'], 'endpoint' => $options['endpoint'], 'tablename' => $options['tablename']]);
+        new ModuleGenerator($options['module'], ['type' => $options['type'], 'endpoint' => $options['endpoint'], 'table' => $options['table']]);
         break;
     case 'clearlogs':
         $storage = new \Pluto\Core\Storage();
@@ -83,15 +83,15 @@ switch ($command) {
             "--type  <string>   \033[96mType\033[0m",
             "--clearlogs  \033[96mClear logs\033[0m",
             "--days   <int>    \033[96mDays\033[0m",
-            "--tablename   <string>    \033[96mTable name\033[0m",
+            "--table   <string>    \033[96mTable name\033[0m",
             "--help       \033[96mHelp\033[0m",
             "",
             "",
             "\033[33mExamples\033[0m\n",
-            "php pluto -m Dashboard -t template -e dashboard --tablename dashboard    \033[96mCreate new module named Dashboard with html template\033[0m",
-            "php pluto --module Dashboard --type template --endpoint dashboard --tablename dashboard     \033[96mCreate new module named Dashboard with html template\033[0m",
-            "php pluto -m Dashboard -t api -e dashboard --tablename dashboard     \033[96mCreate new module named Dashboard as api. Http response will be json\033[0m",
-            "php pluto --module Dashboard --type api  --endpoint dashboard --tablename dashboard     \033[96mCreate new module named Dashboard as api. Http response will be json\033[0m",
+            "php pluto -m Dashboard -t template -e dashboard --table dashboard    \033[96mCreate new module named Dashboard with html template\033[0m",
+            "php pluto --module Dashboard --type template --endpoint dashboard --table dashboard     \033[96mCreate new module named Dashboard with html template\033[0m",
+            "php pluto -m Dashboard -t api -e dashboard --table dashboard     \033[96mCreate new module named Dashboard as api. Http response will be json\033[0m",
+            "php pluto --module Dashboard --type api  --endpoint dashboard --table dashboard     \033[96mCreate new module named Dashboard as api. Http response will be json\033[0m",
             "php pluto -m Dashboard     \033[96mCreate new module named Dashboard with html template as default\033[0m",
             "php pluto --module Dashboard    \033[96mCreate new module named Dashboard with html template as default\033[0m",
             "",
