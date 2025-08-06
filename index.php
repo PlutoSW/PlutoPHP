@@ -16,7 +16,7 @@ use Pluto\Autoloader;
 Autoloader::register();
 
 use Pluto\Core\System;
-use Pluto\Core\Template;
+use Pluto\Core\Template\Template;
 
 $GLOBALS["global"] = (object)[];
 Template::$styles = [
@@ -28,7 +28,14 @@ Template::$scripts = [
 ];
 
 
-System::setBeforeInit(function () use ($global) {});
+System::setafterInit(function () {
+    if (isset($_SESSION["language"])) {
+        System::$language = new \Pluto\Core\Language($_SESSION["language"]);
+    } else {
+        System::$language = new \Pluto\Core\Language("tr");
+    }
+});
+
 
 System::init();
 
