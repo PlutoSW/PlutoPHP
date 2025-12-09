@@ -1,0 +1,112 @@
+
+button,
+.button,
+pluto-button,
+pluto-submit,
+::part(button) {
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--pluto-border-color);
+	border-radius: var(--pluto-border-radius);
+	background-color: var(--pluto-bg-light);
+	color: var(--pluto-text-color);
+	cursor: pointer;
+	transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+	font-size: 0.9rem;
+	text-align: center;
+	vertical-align: middle;
+	user-select: none;
+	text-decoration: none;
+}
+
+button:hover,
+.button:hover,
+pluto-button:hover,
+pluto-submit:hover,
+::part(button):hover {
+	background-color: var(--pluto-bg-dark);
+}
+
+button:disabled,
+.button:disabled,
+pluto-button:disabled,
+pluto-submit:disabled,
+::part(button):disabled {
+	background-color: var(--pluto-bg-dark);
+	cursor: not-allowed;
+	color: var(--pluto-text-color-dark);
+	opacity: 0.65;
+}
+
+button.primary,
+.button.primary,
+pluto-button.primary,
+pluto-submit.primary,
+::part(button primary) {
+	background-color: var(--pluto-primary-color);
+	border-color: var(--pluto-primary-color);
+	color: var(--pluto-text-color-light);
+}
+
+button.primary:hover,
+.button.primary:hover,
+pluto-button.primary:hover,
+pluto-submit.primary:hover,
+::part(button primary):hover {
+	background-color: var(--pluto-primary-color-dark);
+	border-color: var(--pluto-primary-color-dark);
+}
+
+button.secondary,
+.button.secondary,
+pluto-button.secondary,
+pluto-submit.secondary,
+::part(button secondary) {
+	background-color: var(--pluto-secondary-color);
+	border-color: var(--pluto-secondary-color);
+	color: var(--pluto-text-color-light);
+}
+
+button.secondary:hover,
+.button.secondary:hover,
+pluto-button.secondary:hover,
+pluto-submit.secondary:hover,
+::part(button secondary):hover {
+	background-color: var(--pluto-secondary-color-dark);
+	border-color: var(--pluto-secondary-color-dark);
+}
+
+button.success,
+.button.success,
+pluto-button.success,
+pluto-submit.success,
+::part(button success) {
+	background-color: var(--pluto-success-color);
+	border-color: var(--pluto-success-color);
+	color: var(--pluto-text-color-light);
+}
+button.success:hover,
+.button.success:hover,
+pluto-button.success:hover,
+pluto-submit.success:hover,
+::part(button success):hover {
+	background-color: var(--pluto-success-color-dark);
+	border-color: var(--pluto-success-color-dark);
+}
+
+button.danger,
+.button.danger,
+pluto-button.danger,
+pluto-submit.danger,
+::part(button danger) {
+	background-color: var(--pluto-danger-color);
+	border-color: var(--pluto-danger-color);
+	color: var(--pluto-text-color-light);
+}
+button.danger:hover,
+.button.danger:hover,
+pluto-button.danger:hover,
+pluto-submit.danger:hover,
+::part(button danger):hover {
+	background-color: var(--pluto-danger-color-dark);
+	border-color: var(--pluto-danger-color-dark);
+}

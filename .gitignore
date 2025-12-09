@@ -1,0 +1,14 @@
+# Environment variables
+.env
+
+# Application directory
+/app/
+
+# Storage files
+/storage/
+
+/core/assets/js/Pluto.js
+/core/assets/js/prototype.js
+
+.aiexclude
+.vscode

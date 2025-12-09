@@ -1,0 +1,26 @@
+:host {
+	background-color: var(--pluto-bg-light);
+	border: 1px solid var(--pluto-border-color);
+	border-radius: var(--pluto-border-radius);
+	box-shadow: var(--pluto-box-shadow);
+	margin-bottom: 1rem;
+	display: block;
+}
+
+.card-header {
+	background-color: var(--pluto-bg-dark);
+	padding: calc(var(--pluto-padding) * 0.75) var(--pluto-padding);
+	border-bottom: 1px solid var(--pluto-border-color);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.card-header h4{
+	margin: 0 !important;
+}
+
+.card-body {
+	padding: var(--pluto-padding);
+	color: var(--pluto-text-color);
+}

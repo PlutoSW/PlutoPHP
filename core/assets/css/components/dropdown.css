@@ -1,0 +1,73 @@
+:host {
+	position: relative;
+	display: inline-block;
+	font-family: var(--pluto-font-family);
+}
+
+.dropdown-toggle {
+	padding: calc(var(--pluto-padding) * 0.5) calc(var(--pluto-padding) * 1.7)
+		calc(var(--pluto-padding) * 0.5) var(--pluto-padding);
+	border: 1px solid var(--pluto-border-color);
+	background-color: var(--pluto-bg-light);
+	border-radius: var(--pluto-border-radius);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.9rem;
+	color: var(--pluto-text-color);
+}
+
+.dropdown-toggle::after {
+	flex-shrink: 0;
+	width: 12px;
+	height: 12px;
+	content: "";
+	background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='var(--accordion-icon-color)'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+	background-repeat: no-repeat;
+	transition: transform 0.2s ease-in-out;
+	position: absolute;
+	right: 8px;
+}
+
+:host(.open) .dropdown-toggle::after {
+	transform: rotate(180deg);
+}
+
+.dropdown-toggle:hover {
+	background-color: var(--pluto-bg-color);
+	border-color: var(--pluto-border-color);
+}
+
+.dropdown-menu {
+	position: absolute;
+	top: calc(100% + 4px);
+	min-width: 200px;
+	background-color: var(--pluto-bg-light);
+	border: 1px solid var(--pluto-border-color);
+	border-radius: var(--pluto-border-radius);
+	box-shadow: var(--pluto-box-shadow);
+	padding: calc(var(--pluto-padding) * 0.5);
+	z-index: 100;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Direct children that are items */
+::slotted(*) {
+	padding: calc(var(--pluto-padding) * 0.5) calc(var(--pluto-padding) * 0.75); /* 8px 12px */
+	text-decoration: none;
+	color: var(--pluto-text-color-dark);
+	border-radius: 6px;
+	cursor: pointer;
+	background-color: transparent;
+	border: none;
+	text-align: left;
+	font-size: 0.9rem;
+	transition: background-color 0.15s, color 0.15s;
+}
+
+::slotted(*:hover) {
+	background-color: var(--pluto-bg-dark);
+	color: var(--pluto-text-color-dark);
+}
