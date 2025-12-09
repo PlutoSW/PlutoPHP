@@ -372,7 +372,7 @@ php pluto make:module Post
 ```
 This command will generate:
 *   `app/Models/Post.php`
-*   `app/Controllers/PostController.php` (with pre-defined routes!)
+*   `app/Controllers/PostController.php`
 *   `app/Views/post/index.phtml`
 
 ## License
