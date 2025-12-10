@@ -242,7 +242,7 @@ class PlutoTable extends PlutoElement {
 					${this.rowsLengthOptions.map(
 						(length) => html`
 							<option
-								value=${length}
+								value="${length}"
 								${this.rowsLength === length ? "selected" : ""}
 							>
 								${length == -1 ? __("table.all") : length}
