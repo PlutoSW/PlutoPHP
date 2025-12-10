@@ -7,6 +7,7 @@ class ColumnDefinition
     public string $type;
     public string $name;
     public ?int $length = null;
+    public ?array $values = null;
     public bool $nullable = false;
     public $default = null;
     public bool $unsigned = false;

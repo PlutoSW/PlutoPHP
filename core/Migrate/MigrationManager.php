@@ -14,7 +14,7 @@ class MigrationManager
     {
         $this->pdo = Database::getInstance();
         $this->migrationsPath = BASE_PATH . '/storage/migrations';
-        if (!\file_exists($this->migrationsPath)) {
+        if(!\file_exists($this->migrationsPath)){
             mkdir($this->migrationsPath, 0755, true);
         }
     }
@@ -161,7 +161,7 @@ class {$className} implements Migration
 }
 PHP;
         }
-
+        
         if ($operation === 'drop') {
             return <<<PHP
 <?php
@@ -262,7 +262,7 @@ PHP;
             return null;
         }
         require_once $path;
-
+        
         $className = pathinfo($migrationFile, PATHINFO_FILENAME);
         $className = implode('', array_map('ucfirst', explode('_', substr($className, 18))));
 
