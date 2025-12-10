@@ -134,9 +134,8 @@ pluto-toast {
 	align-items: var(--pluto-align, center);
 	gap: var(--pluto-spacing, 1rem);
 	opacity: 0;
-	transform: translateY(calc(var(--pluto-spacing, 1rem) * 2));
+	transform: translateY(var(--pluto-spacing, 1rem));
 	transition: opacity 0.3s ease, transform 0.3s ease;
-	margin-bottom: calc(var(--pluto-margin, 1rem) / 2);
 	position: fixed;
 	bottom: 1rem;
 	right: 1rem;
@@ -160,22 +159,22 @@ pluto-toast[type="danger"] {
 }
 
 pluto-toast[right] {
-	right: calc(var(--pluto-spacing, 1rem) * 2);
+	right: var(--pluto-spacing, 1rem);
 	left: unset;
 }
 
 pluto-toast[bottom] {
-	bottom: calc(var(--pluto-spacing, 1rem) * 2);
+	bottom: var(--pluto-spacing, 1rem);
 	top: unset;
 }
 
 pluto-toast[top] {
-	top: calc(var(--pluto-spacing, 1rem) * 2);
+	top: var(--pluto-spacing, 1rem);
 	bottom: unset;
 }
 
 pluto-toast[left] {
-	left: calc(var(--pluto-spacing, 1rem) * 2);
+	left: var(--pluto-spacing, 1rem);
 	right: unset;
 }
 
