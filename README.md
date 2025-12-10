@@ -1,6 +1,6 @@
 # PlutoPHP Framework
 
-![PlutoPHP](https://img.shields.io/badge/PlutoPHP-v1.0.0-blue.svg)
+![PlutoPHP](https://img.shields.io/badge/PlutoPHP-v1.1.0-blue.svg)
 ![PHP Version](https://img.shields.io/badge/PHP-%3E%3D8.0-8892BF.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
