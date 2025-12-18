@@ -21,8 +21,6 @@ class PlutoUI
             }
         } else {
             $content = file_get_contents(BASE_PATH . '/core/assets/css/Pluto.css');
-            $content .= file_get_contents(BASE_PATH . '/core/assets/css/layout/select.css');
-            $content .= file_get_contents(BASE_PATH . '/core/assets/css/layout/button.css');
             $content .= file_get_contents(BASE_PATH . '/core/assets/css/layout/layout.css');
         }
         if (\getenv('MINIFY') === 'true') {
@@ -46,8 +44,7 @@ class PlutoUI
                 '/styles\(\)\s*\{\s*return\s*\[\s*"([^"]+)"\s*\]\s*;\s*\}/s',
                 function ($matches) use (&$cachedCss) {
                     if (str_contains($matches[1], '/layout/')) {
-                        $cssFileName = basename($matches[1]);
-                        $cssFilePath = BASE_PATH . '/core/assets/css/layout/' . $cssFileName;
+                        return "styles() { return css`@import url(" . $matches[1] . ")`; }";
                     } else {
                         $cssFileName = basename($matches[1]);
                         $cssFilePath = BASE_PATH . '/core/assets/css/components/' . $cssFileName;

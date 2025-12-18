@@ -15,6 +15,7 @@ class PlutoTable extends PlutoElement {
 			_order: { type: String },
 			_total: { type: Number },
 			_selectedRows: { type: Array },
+			_externalUrlParam: { type: Object },
 		};
 	}
 
@@ -51,17 +52,43 @@ class PlutoTable extends PlutoElement {
 			this._order = order || "asc";
 		}
 
+		this._externalUrlParam = this.getAttribute("external-url-param")
+			? JSON.parse(this.getAttribute("external-url-param"))
+			: {};
+
 		this._fetchData();
 	}
+
+	get urlParams() {
+		return this._externalUrlParam;
+	}
+
+	set urlParams(params) {
+		this._externalUrlParam = params;
+		this._fetchData();
+	}
+
+	updateUrlParam(key, value) {
+		this._externalUrlParam[key] = value;
+		this._fetchData();
+	}
+
+	deleteUrlParam(key) {
+		delete this._externalUrlParam[key];
+		this._fetchData();
+	}
+
 
 	_initColumns() {
 		const elements = Array.from(this.children);
 		if (this.selectable) {
-			const dropdown = Array.from(
-				elements.find((a) => a.tagName === "PLUTO-DROPDOWN")?.children
-			);
-			if (!dropdown) return;
-			dropdown.forEach((a) => a.addEventListener("click", (e) => this._handleActionClick(e)));
+			let dropdown = elements.find((a) => a.tagName === "PLUTO-DROPDOWN")?.children;
+			if (dropdown) {
+				dropdown = Array.from(dropdown);
+				dropdown.forEach((a) =>
+					a.addEventListener("click", (e) => this._handleActionClick(e))
+				);
+			}
 		}
 		this._columns = elements
 			.filter((el) => el.tagName === "PLUTO-TH")
@@ -114,6 +141,11 @@ class PlutoTable extends PlutoElement {
 		}
 		if (this.search) {
 			params.append("search", this.search);
+		}
+		if (this._externalUrlParam && typeof this._externalUrlParam === "object") {
+			Object.entries(this._externalUrlParam).forEach(([key, value]) => {
+				params.append(key, value);
+			});
 		}
 
 		try {
@@ -228,6 +260,18 @@ class PlutoTable extends PlutoElement {
 		return this;
 	}
 
+	reload() {
+		this._page = 1;
+		this._fetchData();
+	}
+	_getNestedValue(obj, path) {
+		if (!path || typeof path !== "string") {
+			return undefined;
+		}
+		return path
+			.split(".")
+			.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
+	}
 	render() {
 		const areAllSelected =
 			this._data.length > 0 && this._selectedRows.length === this._data.length;
@@ -318,7 +362,9 @@ class PlutoTable extends PlutoElement {
 								${this._columns.map(
 									(col) =>
 										html`<td>
-											${col?.template ? col.template(row) : row[col.name]}
+											${col?.template
+												? col.template(row)
+												: this._getNestedValue(row, col.name)}
 										</td>`
 								)}
 							</tr> `

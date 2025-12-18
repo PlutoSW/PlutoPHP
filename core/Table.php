@@ -10,6 +10,8 @@ class Table
     protected QueryBuilder $query;
     protected Request $request;
     protected array $searchableColumns = [];
+    protected $_beforeExecute = null;
+
 
     public function __construct(QueryBuilder $query)
     {
@@ -28,19 +30,50 @@ class Table
     public function execute(): array
     {
         $searchTerm = $this->request->get('search');
+
         if ($searchTerm && !empty($this->searchableColumns)) {
-            $this->query->where($this->searchableColumns[0], 'LIKE', "%" . $searchTerm . "%");
-            foreach ($this->searchableColumns as $i => $column) {
-                if ($i === 0) continue;
-                $this->query->orWhere($column, 'LIKE', "%" . $searchTerm . "%");
-            }
+
+            $this->query->where(function (QueryBuilder $query) use ($searchTerm) {
+                foreach ($this->searchableColumns as $column) {
+                    if (str_contains($column, '.')) {
+
+                        [$relation, $field] = explode('.', $column, 2);
+                        $query->orWhereHas($relation, function (QueryBuilder $q) use ($field, $searchTerm) {
+                            $q->where($field, 'LIKE', "%{$searchTerm}%");
+                        });
+                    } else {
+
+                        $query->orWhere($column, 'LIKE', "%{$searchTerm}%");
+                    }
+                }
+            });
         }
 
         $totalRecords = $this->query->count();
         $sortKey = $this->request->get('sort', 'id');
         $sortOrder = $this->request->get('order', 'asc');
+
         if ($sortKey) {
-            $this->query->orderBy($sortKey, $sortOrder);
+            if (str_contains($sortKey, '.')) {
+
+                [$relationName, $fieldName] = explode('.', $sortKey, 2);
+
+                $mainModel = $this->query->getModel();
+                $relation = $mainModel->{$relationName}();
+
+                $relatedTable = $relation->getQuery()->table;
+                $mainTable = $this->query->table;
+                $foreignKey = $relation->getForeignKeyName();
+                $ownerKey = $relation->getOwnerKeyName();
+
+
+                $this->query->leftJoin($relatedTable, "{$mainTable}.{$foreignKey}", '=', "{$relatedTable}.{$ownerKey}");
+
+                $this->query->orderBy("{$relatedTable}.{$fieldName}", $sortOrder);
+            } else {
+
+                $this->query->orderBy("{$this->query->table}.{$sortKey}", $sortOrder);
+            }
         }
         $currentPage = (int)$this->request->get('page', 1);
         $rowsLength = (int)$this->request->get('rowsLength', 10);
@@ -48,8 +81,12 @@ class Table
         if ($rowsLength > -1) {
             $this->query->limit($rowsLength)->offset(($currentPage - 1) * $rowsLength);
         }
-        $data = $this->query->get();
 
+
+        $data = $this->query->get();
+        if (isset($this->_beforeExecute)) {
+            ($this->_beforeExecute)($data);
+        }
         $response = [
             'data' => $data,
             'pagination' => [
@@ -59,11 +96,12 @@ class Table
             ]
         ];
 
-        if (!headers_sent()) {
-            header('Content-Type: application/json');
-        }
-
         return $response;
+    }
+
+    public function beforeExecute(callable $callback): void
+    {
+        $this->_beforeExecute = $callback;
     }
 
     public function __toString(): string

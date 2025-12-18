@@ -92,9 +92,10 @@ class MigrationManager
             return [$table, 'create'];
         }
 
-        if (str_starts_with($name, 'update_') || str_starts_with($name, 'add_') || str_starts_with($name, 'change_')) {
-            $table = preg_replace_callback('/^(update|add|change)_.*_to_(\w+)_table$/', fn($m) => $m[2], $name);
-            return [$table, 'table'];
+        // Handle update, add, change migrations more flexibly
+        // Examples: add_email_column_to_users_table, update_users_table, change_users_email_column_type_table
+        if (preg_match('/^(?:add|update|change)_(?:.*_)?(\w+)_table$/', $name, $matches)) {
+            return [$matches[1], 'table'];
         }
 
         if (str_starts_with($name, 'drop_')) {
@@ -102,7 +103,13 @@ class MigrationManager
             return [$table, 'drop'];
         }
 
-        return [null, 'create'];
+        // Fallback for general table modifications if no specific pattern matches,
+        // assuming the last word before '_table' is the table name.
+        if (preg_match('/(\w+)_table$/', $name, $matches)) {
+            return [$matches[1], 'table'];
+        }
+
+        return [null, 'create']; // Default if no clear table name or operation is identified
     }
 
     protected function getStub(string $className, ?string $table, string $operation): string

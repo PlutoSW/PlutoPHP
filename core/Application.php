@@ -11,6 +11,10 @@ class Application
 
     public function __construct()
     {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
         $this->request = new Request();
         $this->response = new Response();
         $this->router = new Router($this->request, $this->response);
@@ -18,11 +22,13 @@ class Application
         $this->lang = new Lang($_ENV['APP_LANG'] ?? 'en', $_ENV['APP_FALLBACK_LANG'] ?? 'en');
         Lang::setInstance($this->lang);
         $GLOBALS['lang'] = $this->lang->getLocale();
+        $GLOBALS['request'] = $this->request;
     }
 
     public function run()
     {
         try {
+            $this->registerGlobalMiddleware();
             $this->systemRoute();
             $this->registerRoutesFromControllers(BASE_PATH . '/app/Controllers');
 
@@ -33,6 +39,15 @@ class Application
             echo $content;
         }
     }
+
+    private function registerGlobalMiddleware()
+    {
+        $globalMiddlewarePath = BASE_PATH . '/app/Middleware/GlobalMiddleware.php';
+        if (file_exists($globalMiddlewarePath)) {
+            $this->router->setGlobalMiddleware(\App\Middleware\GlobalMiddleware::class);
+        }
+    }
+
 
     private function registerRoutesFromControllers(string $dir)
     {

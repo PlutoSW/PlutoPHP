@@ -54,7 +54,7 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
      * @param  mixed  $default
      * @return mixed
      */
-    public function first(callable $callback = null, $default = null)
+    public function first($callback = null, $default = null)
     {
         if (is_null($callback)) {
             if (empty($this->items)) {

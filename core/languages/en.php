@@ -12,6 +12,10 @@ return [
     'errors.404_title'          => '404 - Not Found',
     'errors.404_subtitle' => 'Page not found',
     'errors.404_description' => 'The page you are looking for does not exist.',
+    'errors.401_title'          => '401 - Unauthorized',
+    'errors.401_subtitle' => 'Unauthorized',
+    'errors.401_description' => 'You are not authorized to access this page.',
+
 
     // Debug Page
     'debug.error'               => 'Error',

@@ -12,6 +12,10 @@ return [
     'errors.404_title'          => '404 - Bulunamadı',
     'errors.404_subtitle' => 'Sayfa bulunamadı',
     'errors.404_description' => 'Aranan sayfa bulunamadı.',
+    'errors.401_title'          => '401 - Kimlik Doğrulanamadı',
+    'errors.401_subtitle' => 'Kimlik Doğrulanamadı',
+    'errors.401_description' => 'Bu sayfayı görüntülemek için yetkiniz yok.',
+
 
     // Hata Ayıklama Sayfası
     'debug.error'               => 'Hata',

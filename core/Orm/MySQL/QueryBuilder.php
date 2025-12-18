@@ -9,7 +9,7 @@ use Pluto\Model;
 class QueryBuilder
 {
     protected PDO $pdo;
-    protected string $table;
+    public string $table;
     protected Model $model;
 
     protected string $select = '*';
@@ -19,6 +19,7 @@ class QueryBuilder
     protected ?string $limit = null;
     protected ?string $offset = null;
     protected array $with = [];
+    protected array $joins = [];
 
     public function __construct(string $modelClass)
     {
@@ -27,19 +28,132 @@ class QueryBuilder
         $this->table = $this->model->getTableName();
     }
 
+    protected function quoteIdentifier(string $identifier): string
+    {
+        // Handle table.column format
+        if (str_contains($identifier, '.')) {
+            return implode('.', array_map(fn ($part) => "`{$part}`", explode('.', $identifier)));
+        }
+
+        // Handle simple column name
+        return "`{$identifier}`";
+    }
+
     public function where($column, $operator = null, $value = null): self
     {
-        $boolean = empty($this->wheres) ? '' : 'AND ';
-        $this->wheres[] = "{$boolean}`{$column}` {$operator} ?";
-        $this->bindings[] = $value;
+
+        if ($column instanceof \Closure) {
+            $this->addNestedWhereQuery($column);
+            return $this;
+        }
+        $quotedColumn = $this->quoteIdentifier($column);
+
+        if (is_null($value) && in_array(strtoupper(trim($operator)), ['IS', 'IS NOT'])) {
+            $boolean = empty($this->wheres) ? '' : 'AND ';
+            $this->wheres[] = "{$boolean}{$quotedColumn} {$operator} NULL";
+        } else {
+            $boolean = empty($this->wheres) ? '' : 'AND ';
+            $this->wheres[] = "{$boolean}{$quotedColumn} {$operator} ?";
+            $this->bindings[] = $value;
+        }
         return $this;
     }
 
-    public function orWhere($column, $operator = null, $value = null): self
+    public function orWhere($column, $operator = null, $value = null, $boolean = 'OR'): self
     {
-        $boolean = empty($this->wheres) ? '' : 'OR ';
-        $this->wheres[] = "{$boolean}`{$column}` {$operator} ?";
-        $this->bindings[] = $value;
+
+        if ($column instanceof \Closure) {
+            $this->addNestedWhereQuery($column, 'OR');
+            return $this;
+        }
+        $quotedColumn = $this->quoteIdentifier($column);
+
+        if (is_null($value) && in_array(strtoupper(trim($operator)), ['IS', 'IS NOT'])) {
+            $boolean = empty($this->wheres) ? '' : "{$boolean} ";
+            $this->wheres[] = "{$boolean}{$quotedColumn} {$operator} NULL";
+        } else {
+            $boolean = empty($this->wheres) ? '' : "{$boolean} ";
+            $this->wheres[] = "{$boolean}{$quotedColumn} {$operator} ?";
+            $this->bindings[] = $value;
+        }
+        return $this;
+    }
+
+    /**
+     * Add a nested where statement to the query.
+     *
+     * @param \Closure $callback
+     * @param string $boolean
+     * @return void
+     */
+    protected function addNestedWhereQuery(\Closure $callback, string $boolean = 'AND')
+    {
+        $query = new self(get_class($this->model));
+        $callback($query);
+
+        if (!empty($query->wheres)) {
+            $nestedWheres = ltrim(implode(' ', $query->wheres), 'AND OR ');
+            $this->wheres[] = (empty($this->wheres) ? '' : "{$boolean} ") . "({$nestedWheres})";
+            $this->bindings = array_merge($this->bindings, $query->getBindings());
+        }
+    }
+
+    /**
+     * Add a "where has" clause to the query.
+     *
+     * @param string $relationName
+     * @param callable $callback
+     * @param string $boolean
+     * @return self
+     */
+    public function whereHas(string $relationName, callable $callback, string $boolean = 'AND'): self
+    {
+        $relation = $this->model->{$relationName}();
+        $relationQuery = $relation->getQuery();
+
+
+        call_user_func($callback, $relationQuery);
+
+        $relationTable = $relationQuery->table;
+        $foreignKey = $relation->getForeignKeyName();
+        $ownerKey = $relation->getOwnerKeyName();
+
+        $subQuery = "EXISTS (SELECT * FROM `{$relationTable}` WHERE `{$this->table}`.`{$foreignKey}` = `{$relationTable}`.`{$ownerKey}` AND " . ltrim(implode(' ', $relationQuery->wheres), 'AND OR ') . ")";
+
+        $this->wheres[] = (empty($this->wheres) ? '' : "{$boolean} ") . $subQuery;
+        $this->bindings = array_merge($this->bindings, $relationQuery->bindings);
+
+        return $this;
+    }
+
+    public function orWhereHas(string $relationName, callable $callback): self
+    {
+        return $this->whereHas($relationName, $callback, 'OR');
+    }
+
+    public function join(string $table, string $firstColumn, string $operator, string $secondColumn, string $type = 'INNER', string $as = ""): self
+    {
+        $jn = "{$type} JOIN `{$table}` ON {$firstColumn} {$operator} {$secondColumn}";
+        if ($as) {
+            $jn .= " AS {$as}";
+        }
+        $this->joins[] = $jn;
+        return $this;
+    }
+
+    public function leftJoin(string $table, string $firstColumn, string $operator, string $secondColumn, string $as = ""): self
+    {
+        return $this->join($table, $firstColumn, $operator, $secondColumn, 'LEFT', $as);
+    }
+
+    public function rightJoin(string $table, string $firstColumn, string $operator, string $secondColumn, string $as = ""): self
+    {
+        return $this->join($table, $firstColumn, $operator, $secondColumn, 'RIGHT', $as);
+    }
+
+    public function select(string|array $columns): self
+    {
+        $this->select = is_array($columns) ? implode(', ', $columns) : $columns;
         return $this;
     }
 
@@ -102,6 +216,10 @@ class QueryBuilder
     {
         $sql = "SELECT COUNT(*) FROM {$this->table}";
 
+        if (!empty($this->joins)) {
+            $sql .= ' ' . implode(' ', $this->joins);
+        }
+
         if (!empty($this->wheres)) {
             $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
         }
@@ -117,11 +235,32 @@ class QueryBuilder
         if ($this->offset) {
             $sql .= " " . $this->offset;
         }
-
-
+        
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($this->bindings);
         return (int) $stmt->fetchColumn();
+    }
+
+    public function debugSql($sql=null): void
+    {
+        $sql = $sql ?? $this->toSql();
+        $bindings = $this->getBindings();
+
+        $i = 0;
+        $rawSql = preg_replace_callback('/\?/', function ($match) use ($bindings, &$i) {
+            if (!isset($bindings[$i])) {
+                return $match[0]; // Eşleşen ? yoksa, olduğu gibi bırak
+            }
+            $value = $bindings[$i];
+            $i++;
+
+            if (is_null($value)) return 'NULL';
+            if (is_string($value)) return "'" . addslashes($value) . "'";
+            return $value;
+        }, $sql);
+
+        echo $rawSql;
+        exit;
     }
 
     public function all(): Collection
@@ -138,7 +277,7 @@ class QueryBuilder
 
     public function find(int $id)
     {
-        return $this->where('id', '=', $id)->first();
+        return $this->where('id', '=', $id);
     }
 
     public function insert(array $values): bool
@@ -164,7 +303,6 @@ class QueryBuilder
         if (!empty($this->wheres)) {
             $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
         }
-
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute(array_merge($updateBindings, $this->bindings));
     }
@@ -192,6 +330,16 @@ class QueryBuilder
         return $stmt->execute($this->bindings);
     }
 
+    public function softDelete(): bool
+    {
+        $sql = "UPDATE {$this->table} SET deleted_at = NOW()";
+        if (!empty($this->wheres)) {
+            $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
+        }
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute($this->bindings);
+    }
+
     public function lastInsertId(): int
     {
         return (int) $this->pdo->lastInsertId();
@@ -200,6 +348,10 @@ class QueryBuilder
     public function toSql(): string
     {
         $sql = "SELECT {$this->select} FROM {$this->table}";
+
+        if (!empty($this->joins)) {
+            $sql .= ' ' . implode(' ', $this->joins);
+        }
 
         if (!empty($this->wheres)) {
             $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
@@ -247,31 +399,36 @@ class QueryBuilder
         }
 
         foreach ($this->with as $relationName) {
-            $relationInstance = $this->model->{$relationName}();
-            $relatedModel = $relationInstance->getModel();
 
 
-            $foreignKey = strtolower(basename(str_replace('\\', '/', get_class($this->model)))) . '_id';
-            $localKey = $this->model->getKeyName();
+            $relation = $this->model->{$relationName}();
 
-            $ids = $collection->map(function ($model) use ($localKey) {
-                return $model->{$localKey};
-            })->all();
+            if (method_exists($relation, 'getRelationType') && $relation->getRelationType() === 'belongsTo') {
+                $foreignKey = $relation->getForeignKeyName();
+                $ownerKey = $relation->getOwnerKeyName();
 
-            $relatedModels = $relatedModel::query()->whereIn($foreignKey, $ids)->get();
 
-            $grouped = [];
-            foreach ($relatedModels as $relatedModel) {
-                $grouped[$relatedModel->{$foreignKey}][] = $relatedModel;
-            }
+                $foreignKeyValues = $collection->map(function ($model) use ($foreignKey) {
+                    return $model->{$foreignKey};
+                })->all();
 
-            foreach ($collection as $model) {
-                $modelId = $model->{$localKey};
-                if (isset($grouped[$modelId])) {
-                    $model->setRelation($relationName, new Collection($grouped[$modelId]));
-                } else {
-                    $model->setRelation($relationName, new Collection());
+
+                $relatedModels = $relation->whereIn($ownerKey, array_unique(array_filter($foreignKeyValues)))->get();
+
+
+                $relatedModelsById = [];
+                foreach ($relatedModels as $relatedModel) {
+                    $relatedModelsById[$relatedModel->{$ownerKey}] = $relatedModel;
                 }
+
+
+                foreach ($collection as $model) {
+                    $foreignKeyValue = $model->{$foreignKey};
+                    if (isset($relatedModelsById[$foreignKeyValue])) {
+                        $model->setRelation($relationName, $relatedModelsById[$foreignKeyValue]);
+                    }
+                }
+            } else {
             }
         }
     }
@@ -284,5 +441,15 @@ class QueryBuilder
     public function getModel(): \Pluto\Model
     {
         return $this->model;
+    }
+
+    /**
+     * Get the query bindings.
+     *
+     * @return array
+     */
+    public function getBindings(): array
+    {
+        return $this->bindings;
     }
 }

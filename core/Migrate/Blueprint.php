@@ -40,6 +40,11 @@ class Blueprint
         return $this->addColumn('enum', $column, compact('values'));
     }
 
+    public function json(string $column): ColumnDefinition
+    {
+        return $this->addColumn('json', $column);
+    }
+
     public function text(string $column): ColumnDefinition
     {
         return $this->addColumn('text', $column);
@@ -249,6 +254,8 @@ class Blueprint
 
         if ($column->type === 'enum' && !empty($column->values)) {
             $sql .= "('" . implode("','", $column->values) . "')";
+        } elseif ($column->type === 'decimal' && isset($column->precision, $column->scale)) {
+            $sql .= "({$column->precision}, {$column->scale})";
         } elseif (isset($column->length)) {
             $sql .= "({$column->length})";
         }

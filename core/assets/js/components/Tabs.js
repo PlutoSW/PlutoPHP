@@ -20,21 +20,25 @@ class Tabs extends PlutoElement {
 		const tabElements = Array.from(this.querySelectorAll("pluto-tab"));
 		this._tabs = tabElements.map((tab, index) => ({
 			label: tab.getAttribute("label"),
-
-			content: tab.innerHTML,
-			isActive: tab.hasAttribute("active"),
+			element: tab,
 		}));
 
-		const initialActiveIndex = this._tabs.findIndex((tab) => tab.isActive);
+		const initialActiveIndex = this._tabs.findIndex((tab) =>
+			tab.element.hasAttribute("active")
+		);
 		this.activeIndex = initialActiveIndex !== -1 ? initialActiveIndex : 0;
-
-		while (this.firstChild) {
-			this.removeChild(this.firstChild);
-		}
+		this._selectTab(this.activeIndex);
 	}
 
 	_selectTab(index) {
 		this.activeIndex = index;
+		this._tabs.forEach((tab, i) => {
+			if (i === index) {
+				tab.element.setAttribute("active", "");
+			} else {
+				tab.element.removeAttribute("active");
+			}
+		});
 	}
 
 	render() {
@@ -52,7 +56,7 @@ class Tabs extends PlutoElement {
 				)}
 			</div>
 			<div class="tab-content">
-				${unsafeHTML(this._tabs[this.activeIndex]?.content || "")}
+				<slot></slot>
 			</div>
 		`;
 	}
