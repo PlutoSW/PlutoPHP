@@ -12,6 +12,9 @@ class PlutoInput extends PlutoElement {
 			"error-required": { type: String },
 			placeholder: { type: String },
 			formatter: { type: Function },
+			step: { type: Number },
+			min: { type: String },
+			max: { type: String },
 		};
 	}
 
@@ -25,11 +28,24 @@ class PlutoInput extends PlutoElement {
 	}
 
 	set value(newValue) {
-		const input = this.wrapper?.querySelector("input");
+		const input = this.input || this.wrapper?.querySelector("input");
 		if (input && input.value !== newValue) {
 			input.value = newValue;
 
 			this.dispatch(new Event("input", { bubbles: true, composed: true }));
+		}
+	}
+
+	onReady() {
+		this.input = this.wrapper.querySelector("input");
+		if (this.step) {
+			this.input.step = this.step;
+		}
+		if (this.min) {
+			this.input.min = this.min;
+		}
+		if (this.max) {
+			this.input.max = this.max;
 		}
 	}
 
@@ -63,7 +79,7 @@ class PlutoInput extends PlutoElement {
 	}
 
 	styles() {
-		return ["core/styles/layout/form.css"];
+		return ["core/style/layout/layout.css"];
 	}
 
 	render() {
@@ -101,7 +117,88 @@ class PlutoInput extends PlutoElement {
 					minlength=${this.minlength}
 					maxlength=${this.maxlength}
 					placeholder=${this.placeholder || ""}
+					step=${this.step}
+					min=${this.min}
+					max=${this.max}
 				/>
+				${this.error ? html`<div class="error-message">${this.error}</div>` : ""}
+			</div>
+		`;
+	}
+}
+
+class PlutoTextarea extends PlutoElement {
+	static get props() {
+		return {
+			label: { type: String },
+			name: { type: String },
+			type: { type: String },
+			required: { type: Boolean },
+			error: { type: String },
+			rows: { type: Number },
+			cols: { type: Number },
+			"error-required": { type: String },
+			placeholder: { type: String },
+		};
+	}
+
+	constructor() {
+		super();
+		this.type = "text";
+	}
+
+	get value() {
+		return this.wrapper?.querySelector("textarea")?.value || "";
+	}
+
+	set value(newValue) {
+		const input = this.wrapper?.querySelector("textarea");
+		if (input && input.value !== newValue) {
+			input.value = newValue;
+
+			this.dispatch(new Event("input", { bubbles: true, composed: true }));
+		}
+	}
+
+	validate() {
+		const input = this.wrapper.querySelector("textarea");
+
+		if (!input) return true;
+
+		const isValid = input.checkValidity();
+
+		if (isValid) {
+			this.error = "";
+			this.classList.remove("is-invalid");
+		} else {
+			if (input.validity.valueMissing) {
+				this.error = this.getAttribute("error-required") || __("validation.required");
+			}
+			this.classList.add("is-invalid");
+		}
+
+		return isValid;
+	}
+
+	styles() {
+		return ["core/style/layout/layout.css"];
+	}
+
+	render() {
+		return html`
+			<div class="form-group">
+				${this.label ? html`<label for=${this.name}>${this.label}</label>` : ""}
+				<textarea
+					?required=${this.required}
+					type=${this.type}
+					name=${this.name}
+					id=${this.name}
+					class="input"
+					value=${this.getAttribute("value") || ""}
+					rows=${this.rows}
+					cols=${this.cols}
+					placeholder=${this.placeholder || ""}
+				/></textarea>
 				${this.error ? html`<div class="error-message">${this.error}</div>` : ""}
 			</div>
 		`;
@@ -113,7 +210,7 @@ class PlutoSelect extends PlutoElement {
 		return {
 			label: { type: String },
 			name: { type: String },
-			value: { type: String },
+			_value: { type: String },
 			error: { type: String },
 			options: { type: Array },
 			"error-required": { type: String },
@@ -124,18 +221,22 @@ class PlutoSelect extends PlutoElement {
 	constructor() {
 		super();
 		this.options = [];
+		this.selected = null;
 	}
 
 	styles() {
-		return ["core/styles/layout/form.css"];
+		return ["core/style/layout/layout.css"];
 	}
 
-	value(data) {
-		if (typeof data !== "undefined") {
-			return (this.wrapper.querySelector("select").value = data);
-		} else {
-			return this.wrapper.querySelector("select").value;
-		}
+	set value(data) {
+		if (this._value === data) return;
+		this.wrapper.querySelector("select").value = data;
+		this._value = data;
+		this.dispatch(new Event("change", { bubbles: true, composed: true }));
+	}
+
+	get value() {
+		return this._value;
 	}
 
 	validate() {
@@ -151,13 +252,26 @@ class PlutoSelect extends PlutoElement {
 		return isValid;
 	}
 
+	onReady() {
+		if (!this.selected) {
+			let selected = this.options.find((option) => option.selected);
+			if (selected) {
+				this.value = selected.value;
+			}else{
+				this.value = this.attr("value");
+			}
+		}
+	}
+
 	render() {
 		return html`
 			<div class="form-group">
 				<label for=${this.name}>${this.label}</label>
 				<select
 					@change=${(e) => {
+						if (!e.target.value) return;
 						this.value = e.target.value;
+						this.selected = e.target.selectOption;
 					}}
 					required=${this.required}
 					name=${this.name}
@@ -167,8 +281,9 @@ class PlutoSelect extends PlutoElement {
 					${this.options.map(
 						(option) => html`
 							<option
-								value=${option.value}
-								?selected=${this.value === option.value}
+								value="${option.value}"
+								${option.disabled ? `disabled ` : ""}
+								${this.value === option.value ? "selected " : ""}
 							>
 								${option.text}
 							</option>
@@ -199,7 +314,7 @@ class PlutoCheckbox extends PlutoElement {
 	}
 
 	styles() {
-		return ["core/styles/layout/form.css"];
+		return ["core/style/layout/layout.css"];
 	}
 
 	get checked() {
@@ -270,7 +385,7 @@ class PlutoRadio extends PlutoElement {
 	}
 
 	styles() {
-		return ["core/styles/layout/form.css"];
+		return ["core/style/layout/layout.css"];
 	}
 
 	constructor() {
@@ -427,27 +542,38 @@ class PlutoAdvancedSelect extends PlutoElement {
 	}
 
 	styles() {
-		return ["core/styles/layout/form.css"];
+		return ["core/style/layout/layout.css"];
 	}
 
 	onReady() {}
 	async onConnect() {
 		if (this.sort) {
 			const [col, order] = this.sort.split(":");
-			this._sort = col;
+			this._sort = col || "id";
 			this._order = order || "asc";
 		}
-		this.searchValue = "";
-		this.searchError = "";
-		this.searchLoading = false;
-		this.searchPlaceholder = "Search";
+		if (!this.split) {
+			this.split = "name:id";
+		}
+		if (!this.length) {
+			this.length = 10;
+		}
+
 		this._filtered = this.options || (await this.fetchData());
 		this.open = false;
-		this.value = this.multiple ? [] : null;
+		if (this.attr("value")) {
+			this.value = this.attr("value");
+		} else {
+			this.value = this.multiple ? [] : null;
+		}
 		this._boundClickOutside = this._clickOutside.bind(this);
 		document.addEventListener("click", this._boundClickOutside);
 
 		if (this.search) {
+			this.searchValue = "";
+			this.searchError = "";
+			this.searchLoading = false;
+			this.searchPlaceholder = "Search";
 			let searchInput = document.createElement("pluto-input");
 			searchInput.setAttribute("slot", "search");
 			searchInput.setAttribute("placeholder", this.searchPlaceholder);
@@ -526,9 +652,9 @@ class PlutoAdvancedSelect extends PlutoElement {
 
 	selectOption(option) {
 		if (this.multiple) {
-			const isSelected = this.value.some((v) => v === option.value);
+			const isSelected = this.value.some((v) => v == option.value);
 			if (isSelected) {
-				this.value = this.value.filter((v) => v !== option.value);
+				this.value = this.value.filter((v) => v != option.value);
 			} else {
 				this.value = [...this.value, option.value];
 			}
@@ -558,10 +684,10 @@ class PlutoAdvancedSelect extends PlutoElement {
 		if (this.multiple) {
 			if (!this.value || this.value.length === 0) return this.label;
 			return this.value
-				.map((v) => this.options.find((opt) => opt.value === v)?.text)
+				.map((v) => this.options.find((opt) => opt.value == v)?.text)
 				.join(", ");
 		} else {
-			const selected = this.options.find((opt) => opt.value === this.value);
+			const selected = this.options.find((opt) => opt.value == this.value);
 			return selected ? selected.text : this.label;
 		}
 	}
@@ -611,6 +737,7 @@ class PlutoAdvancedSelect extends PlutoElement {
 }
 Pluto.assign("pluto-adv-select", PlutoAdvancedSelect);
 Pluto.assign("pluto-input", PlutoInput);
+Pluto.assign("pluto-textarea", PlutoTextarea);
 Pluto.assign("pluto-select", PlutoSelect);
 Pluto.assign("pluto-checkbox", PlutoCheckbox);
 Pluto.assign("pluto-radio", PlutoRadio);

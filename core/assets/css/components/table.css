@@ -1,5 +1,4 @@
-@import url('/core/style/layout/select.css');
-@import url('/core/style/layout/icon.css');
+@import url('/core/style/layout/layout.css');
 :host {
 	display: block;
 	font-family: var(--pluto-font-family);

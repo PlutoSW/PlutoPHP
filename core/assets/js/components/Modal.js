@@ -4,6 +4,7 @@ class Modal extends PlutoElement {
 			header: { type: String },
 			open: { type: Boolean },
 			size: { type: String },
+			dismissable: { type: Boolean },
 		};
 	}
 
@@ -12,6 +13,17 @@ class Modal extends PlutoElement {
 		this.header = "";
 		this.open = false;
 		this.size = "sm";
+		this.dismissable = true;
+	}
+
+	onPropUpdate(name, old, newVal) {
+		if (name === "open") {
+			if (newVal) {
+				this.dispatch("open");
+			} else {
+				this.dispatch("close");
+			}
+		}
 	}
 
 	show() {
@@ -23,7 +35,9 @@ class Modal extends PlutoElement {
 	}
 
 	_handleOverlayClick(e) {
-		this.hide();
+		if (this.dismissable) {
+			this.hide();
+		}
 	}
 
 	stopPropagation(e) {
@@ -47,9 +61,11 @@ class Modal extends PlutoElement {
 				};
 				modalElement.addEventListener("animationend", animationEndHandler);
 			});
+			this.removeAttr("open");
+			this.open = false;
 			return html``;
 		}
-
+		this.setAttribute("open", "");
 		if (this.size) {
 			this.setAttribute(this.size, "");
 		}

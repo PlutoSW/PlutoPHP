@@ -67,6 +67,10 @@ class Request
         return $defaultValue;
     }
 
+    public function posts():array{
+        return $_POST;
+    }
+
     public function payload(): array
     {
         $data = json_decode(file_get_contents('php://input'), true);

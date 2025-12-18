@@ -35,6 +35,16 @@ class Blueprint
         return $this->addColumn('varchar', $column, compact('length'));
     }
 
+    public function enum(string $column, array $values): ColumnDefinition
+    {
+        return $this->addColumn('enum', $column, compact('values'));
+    }
+
+    public function json(string $column): ColumnDefinition
+    {
+        return $this->addColumn('json', $column);
+    }
+
     public function text(string $column): ColumnDefinition
     {
         return $this->addColumn('text', $column);
@@ -50,12 +60,6 @@ class Blueprint
         return $this->addColumn('decimal', $column, compact('precision', 'scale'));
     }
     
-
-    public function unsignedInteger(string $column): ColumnDefinition
-    {
-        return $this->integer($column)->unsigned();
-    }
-
     public function bigInteger(string $column): ColumnDefinition
     {
         return $this->addColumn('bigint', $column);
@@ -248,7 +252,11 @@ class Blueprint
     {
         $sql = "`{$column->name}` " . strtoupper($column->type);
 
-        if (isset($column->length)) {
+        if ($column->type === 'enum' && !empty($column->values)) {
+            $sql .= "('" . implode("','", $column->values) . "')";
+        } elseif ($column->type === 'decimal' && isset($column->precision, $column->scale)) {
+            $sql .= "({$column->precision}, {$column->scale})";
+        } elseif (isset($column->length)) {
             $sql .= "({$column->length})";
         }
 

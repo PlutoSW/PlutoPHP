@@ -37,7 +37,9 @@ switch ($command) {
     case 'migrate:rollback':
         (new MigrationManager())->rollback();
         break;
-
+    case 'make:middleware':
+        makeFile('middleware', $args);
+        break;
     case 'make:controller':
         makeFile('controller', $args);
         break;
@@ -105,7 +107,31 @@ class {$className} extends Controller
 }
 PHP;
             break;
+        case 'middleware':
+            $path = BASE_PATH . "/app/Middleware/{$className}.php";
+            $namespace = 'App\Middleware';
+            $viewName = strtolower($name);
+            $stub = <<<PHP
+<?php
 
+namespace {$namespace};
+
+use Closure;
+use Pluto\Middleware;
+use Pluto\Request;
+
+class {$className} implements Middleware
+{
+    public function handle(Request \$request, Closure \$next)
+    {
+
+        // Middleware logic goes here
+
+        return \$next(\$request);
+    }
+}
+PHP;
+            break;
         case 'model':
             $path = BASE_PATH . "/app/Models/{$className}.php";
             $namespace = 'App\Models';
@@ -200,7 +226,9 @@ HTML;
 @endsection
 
 @push('js')
-<script></script>
+<pluto-script when="DOMContentLoaded">
+    
+</pluto-script>
 @endpush
 HTML;
             break;

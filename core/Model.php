@@ -43,6 +43,13 @@ abstract class Model implements JsonSerializable
      */
     protected array $visible = [];
 
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected array $casts = [];
+
 
     /**
      * The model's attributes.
@@ -102,6 +109,51 @@ abstract class Model implements JsonSerializable
         $model = new static($attributes);
         $model->save();
         return $model;
+    }
+
+    /**
+     * Get the first record matching the attributes or create it.
+     *
+     * @param  array  $attributes
+     * @param  array  $values
+     * @return static
+     */
+    public static function firstOrCreate(array $attributes, array $values = []): self
+    {
+        if (!is_null($instance = static::where($attributes)->first())) {
+            return $instance;
+        }
+
+        return static::create(array_merge($attributes, $values));
+    }
+
+    /**
+     * Create or update a record matching the attributes, and fill it with values.
+     *
+     * @param  array  $attributes
+     * @param  array  $values
+     * @return static
+     */
+    public static function updateOrCreate(array $attributes, array $values = []): self
+    {
+        $instance = static::firstOrNew($attributes);
+
+        $instance->fill($values);
+
+        $instance->save();
+
+        return $instance;
+    }
+
+    /**
+     * Get the first record matching the attributes or instantiate it.
+     *
+     * @param  array  $attributes
+     * @return static
+     */
+    public static function firstOrNew(array $attributes): self
+    {
+        return static::where($attributes)->first() ?? new static($attributes);
     }
 
     /**
@@ -238,14 +290,21 @@ abstract class Model implements JsonSerializable
      */
     public function getAttribute(string $key)
     {
+        // Check if the attribute has a value in the attributes array
         if (array_key_exists($key, $this->attributes)) {
+            // If the attribute has a cast, cast it and return
+            if ($this->hasCast($key)) {
+                return $this->castAttribute($key, $this->attributes[$key]);
+            }
             return $this->attributes[$key];
         }
 
+        // Check for the attribute in relations
         if (array_key_exists($key, $this->relations)) {
             return $this->relations[$key];
         }
 
+        // If the attribute is a method, it might be a relation
         if (method_exists($this, $key)) {
             return $this->getRelationValue($key);
         }
@@ -282,6 +341,12 @@ abstract class Model implements JsonSerializable
      */
     public function setAttribute(string $key, $value): void
     {
+        // If the attribute has a cast, apply it before setting.
+        if ($this->hasCast($key)) {
+            $this->attributes[$key] = $this->setMutatedAttributeValue($key, $value);
+            return;
+        }
+
         $this->attributes[$key] = $value;
     }
 
@@ -304,6 +369,83 @@ abstract class Model implements JsonSerializable
     protected function isFillable(string $key): bool
     {
         return in_array($key, $this->fillable);
+    }
+
+    /**
+     * Determine whether an attribute should be cast to a native type.
+     *
+     * @param  string  $key
+     * @return bool
+     */
+    protected function hasCast(string $key): bool
+    {
+        return array_key_exists($key, $this->casts);
+    }
+
+    /**
+     * Get the type of cast for a model attribute.
+     *
+     * @param  string  $key
+     * @return string
+     */
+    protected function getCastType(string $key): string
+    {
+        return trim(strtolower($this->casts[$key]));
+    }
+
+    /**
+     * Cast an attribute to a native PHP type.
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @return mixed
+     */
+    protected function castAttribute(string $key, $value)
+    {
+        if (is_null($value)) {
+            return $value;
+        }
+
+        switch ($this->getCastType($key)) {
+            case 'int':
+            case 'integer':
+                return (int) $value;
+            case 'real':
+            case 'float':
+            case 'double':
+                return (float) $value;
+            case 'string':
+                return (string) $value;
+            case 'bool':
+            case 'boolean':
+                return (bool) $value;
+            case 'object':
+                return json_decode($value, false);
+            case 'array':
+            case 'json':
+                return json_decode($value, true);
+            default:
+                return $value;
+        }
+    }
+
+    /**
+     * Set a mutated attribute on the model.
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @return mixed
+     */
+    protected function setMutatedAttributeValue(string $key, $value)
+    {
+        switch ($this->getCastType($key)) {
+            case 'array':
+            case 'json':
+            case 'object':
+                return is_scalar($value) ? $value : json_encode($value);
+            default:
+                return $value;
+        }
     }
 
     /**
@@ -365,7 +507,14 @@ abstract class Model implements JsonSerializable
      */
     public static function __callStatic(string $method, array $parameters)
     {
-        return (new static)->newQuery()->{$method}(...$parameters);
+        $query = static::newQuery();
+        if ($method === 'where' && is_array($parameters[0])) {
+            foreach ($parameters[0] as $key => $value) {
+                $query->where($key, '=', $value);
+            }
+            return $query;
+        }
+        return $query->{$method}(...$parameters);
     }
 
     /**
@@ -435,13 +584,13 @@ abstract class Model implements JsonSerializable
         return $this->exists ? $query->where($foreignKey, '=', $this->getAttribute($localKey)) : $query;
     }
 
-    protected function belongsTo(string $relatedModel, ?string $foreignKey = null, ?string $ownerKey = null)
+    protected function belongsTo(string $relatedModel, ?string $foreignKey = null, ?string $ownerKey = null): \Pluto\Orm\MySQL\BelongsTo
     {
         $foreignKey = $foreignKey ?? strtolower(basename(str_replace('\\', '/', $relatedModel))) . '_id';
-        $ownerKey = $ownerKey ?? (new $relatedModel)->primaryKey;
-
         $relatedInstance = new $relatedModel();
-        return $relatedInstance->newQuery()->where($ownerKey, '=', $this->getAttribute($foreignKey));
+        $ownerKey = $ownerKey ?? $relatedInstance->getKeyName();
+
+        return new \Pluto\Orm\MySQL\BelongsTo($relatedInstance->newQuery(), $this, $foreignKey, $ownerKey);
     }
 
     /**

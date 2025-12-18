@@ -12,8 +12,8 @@ class Template
     protected ?string $layout = null;
     protected array $stacks = [];
     protected array $pushStack = [];
+    protected array $sharedData = [];
     protected array $dependencies = [];
-    public static array $global = [];
     protected array $allowed_filters = [
         'htmlspecialchars',
         'strtoupper',
@@ -23,6 +23,7 @@ class Template
         'ucwords',
         'trim',
         'date',
+        'strtotime',
         'number_format',
         'str_replace',
         'json_encode',
@@ -30,7 +31,11 @@ class Template
         'nl2br',
         'urlencode',
         'rawurlencode',
-        'global'
+        'global',
+        'array_map',
+        'toPrice',
+        'print_r',
+        'var_dump'
     ];
 
     public function __construct()
@@ -133,7 +138,7 @@ class Template
 
     protected function renderFile(string $cachedFile, array $data): string
     {
-        extract($data);
+        extract(array_merge($this->sharedData, $data), EXTR_SKIP);
 
         ob_start();
         include $cachedFile;
@@ -183,101 +188,91 @@ class Template
 
             return $compiledIncludedContent;
         }, $content);
+
         $content = preg_replace_callback('/\{\{\s*(.+?)\s*\}\}/', function ($matches) {
             $expressionWithFilters = $matches[1];
             $parts = explode('|', $expressionWithFilters);
             $variableExpression = trim(array_shift($parts));
 
             if (empty($parts)) {
-                return '<?php echo htmlspecialchars(' . $this->convertDotNotationAdvanced($variableExpression) . ' ?? \'\'); ?>';
+                return '<?php echo htmlspecialchars(' . $this->compileExpression($variableExpression) . ' ?? \'\'); ?>';
             }
 
-            $output = $this->convertDotNotationAdvanced($variableExpression);
+            $output = $this->compileExpression($variableExpression);
             foreach ($parts as $filter) {
-                $filterParts = explode(':', trim($filter), 2);
+                $filterParts = explode(':', trim($filter));
                 $filterName = trim($filterParts[0]);
                 $filterArgs = isset($filterParts[1]) ? ', ' . $filterParts[1] : '';
 
                 if (!in_array($filterName, $this->allowed_filters)) {
                     continue;
                 }
-                $output = sprintf('%s(%s%s)', $filterName, $output, $filterArgs);
+                if ($filterName === 'array_map' || $filterName === 'str_replace') {
+                    $output = sprintf('%s(%s, %s)', $filterName, trim(ltrim($filterArgs, ', ')), $output);
+                } elseif ($filterName === 'toPrice') {
+                    $output = \sprintf('$GLOBALS["template"]::toPrice(%s, "%s", "%s")', $output, $filterParts[1], $filterParts[2]);
+                } elseif ($filterName === 'json_encode') {
+                    $output = sprintf('json_encode(%s, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)', $output);
+                } else {
+                    $output = sprintf('%s(%s%s)', $filterName, $output, $filterArgs);
+                }
             }
 
             return '<?php echo ' . $output . '; ?>';
         }, $content);
-        $content = preg_replace_callback('/@if\s*\((.+?)\)/', function ($matches) {
+        $content = preg_replace_callback('/@if\((.*)\)/', function ($matches) {
             return '<?php if(' . $this->compileExpression($matches[1]) . '): ?>';
         }, $content);
-        $content = preg_replace_callback('/@elseif\s*\((.+?)\)/', function ($matches) {
+        $content = preg_replace_callback('/@elseif\((.*)\)/', function ($matches) {
             return '<?php elseif(' . $this->compileExpression($matches[1]) . '): ?>';
         }, $content);
         $content = preg_replace('/@else/', '<?php else: ?>', $content);
         $content = preg_replace('/@endif/', '<?php endif; ?>', $content);
-        $content = preg_replace_callback('/@foreach\s*\((.+?)\)/', function ($matches) {
-            return '<?php foreach(' . $this->compileExpression($matches[1]) . '): ?>';
+        $content = preg_replace_callback('/@foreach\((.*)\)/', function ($matches) {
+            $expression = $matches[1];
+            $parts = preg_split('/\s+as\s+/', $expression);
+            $iterable = $this->compileExpression(trim($parts[0]));
+            $loopVars = isset($parts[1]) ? ' as ' . $this->compileExpression(trim($parts[1])) : '';
+            return '<?php foreach(' . $iterable . $loopVars . '): ?>';
         }, $content);
         $content = preg_replace('/@endforeach/', '<?php endforeach; ?>', $content);
-        $content = preg_replace_callback('/@for\s*\((.+?)\)/', function ($matches) {
+        $content = preg_replace_callback('/@for\((.*)\)/', function ($matches) {
             return '<?php for(' . $this->compileExpression($matches[1]) . '): ?>';
         }, $content);
         $content = preg_replace('/@endfor/', '<?php endfor; ?>', $content);
         $content = preg_replace('/@php/', '<?php', $content);
         $content = preg_replace('/@endphp/', '?>', $content);
 
+        $content = preg_replace_callback('/@set\((.*)\)/', function ($matches) {
+            return '<?php ' . $this->compileSetDirective($matches[1]) . '; ?>';
+        }, $content);
+
         return $content;
+    }
+
+    protected function compileSetDirective(string $expression): string
+    {
+        $parts = explode(',', $expression, 3);
+        if (count($parts) < 2) {
+            return "echo '<!-- Invalid @set directive -->';";
+        }
+
+        $variableName = trim(trim($parts[0]), " '\"");
+        $valueExpression = $this->compileExpression(trim($parts[1]));
+        $isGlobal = isset($parts[2]) && trim($parts[2]) === 'true';
+
+        return $isGlobal
+            ? '$this->sharedData[\'' . $variableName . '\'] = ' . $valueExpression
+            : '$' . $variableName . ' = ' . $valueExpression;
     }
 
     protected function compileExpression(string $expression): string
     {
-        return preg_replace_callback(
-            '/(?<![\'"])\b([a-zA-Z_][\w\.]*(?:->\w+)*)\b(?![\'"]|[(\w])/',
-            function ($matches) {
-                return $this->convertDotNotationAdvanced($matches[0]);
-            },
-            $expression
-        );
-    }
-
-
-    function convertDotNotationAdvanced($dotNotation, $escapeSingleQuotes = false)
-    {
-        if (empty($dotNotation)) {
-            return '';
-        }
-
-        $dotNotation = trim($dotNotation);
-        $dotNotation = ltrim($dotNotation, '$');
-        $quote = $escapeSingleQuotes ? "'" : '"';
-        $objectParts = explode('->', $dotNotation);
-        $result = '';
-
-        foreach ($objectParts as $objIndex => $objectPart) {
-            if ($objIndex > 0) {
-                $result .= '->';
-            }
-
-            $arrayParts = explode('.', $objectPart);
-
-            foreach ($arrayParts as $arrIndex => $arrayPart) {
-                if ($arrayPart === '') {
-                    continue;
-                }
-
-                if ($arrIndex === 0) {
-                    $result .= $arrayPart;
-                } else {
-                    if (is_numeric($arrayPart)) {
-                        $result .= '[' . $arrayPart . ']';
-                    } else {
-                        $escapedKey = str_replace($quote, '\\' . $quote, $arrayPart);
-                        $result .= '[' . $quote . $escapedKey . $quote . ']';
-                    }
-                }
-            }
-        }
-
-        return '$' . $result;
+        // This regex finds variable-like words that are not function calls and prepends a '$' to them.
+        // It avoids words followed by '(', words already starting with '$', and numeric/string literals.
+        // This function no longer automatically prepends '$' to variables.
+        // Standard PHP syntax with '$' is now required in templates.
+        return $expression;
     }
 
     protected function startSection(string $name): void
@@ -351,5 +346,11 @@ class Template
         preg_match_all('/@include\s*\(\s*\'(.*?)\'\s*\)/', $content, $matches);
 
         return array_merge($tempDependencies, array_map(fn($v) => $this->viewsPath . str_replace('.', '/', $v) . '.phtml', $matches[1]));
+    }
+
+    public static function toPrice($price, $locale, $currency)
+    {
+        $formatter = new \NumberFormatter($locale,  \NumberFormatter::CURRENCY);
+        return $formatter->formatCurrency($price, $currency);
     }
 }

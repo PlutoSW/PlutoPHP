@@ -7,7 +7,8 @@ class Route
 {
     public function __construct(
         public string $path,
-        public string $method = 'GET'
+        public string $method = 'GET',
+        public array $middleware = []
     ) {}
 }
 
@@ -16,12 +17,19 @@ class Router
     protected array $routes = [];
     protected Request $request;
     protected Response $response;
+    protected ?string $globalMiddleware = null;
 
     public function __construct(Request $request, Response $response)
     {
         $this->request = $request;
         $this->response = $response;
     }
+
+    public function setGlobalMiddleware(string $middlewareClass): void
+    {
+        $this->globalMiddleware = $middlewareClass;
+    }
+
 
     public function registerRoutesFromController(string $controllerClass)
     {
@@ -32,21 +40,25 @@ class Router
 
             foreach ($attributes as $attribute) {
                 $route = $attribute->newInstance();
-                $this->addRoute($route->method, $route->path, [$controllerClass, $method->getName()]);
+                $this->addRoute($route->method, $route->path, [$controllerClass, $method->getName()], $route->middleware);
             }
         }
     }
 
-    public function addRoute(string $method, string $path, $callback)
+    public function addRoute(string $method, string $path, $callback, array $middleware = [])
     {
-        $this->routes[\strtoupper($method)][$path] = $callback;
+        $this->routes[\strtoupper($method)][$path]['callback'] = $callback;
+        $this->routes[\strtoupper($method)][$path]['middleware'] = $middleware;
     }
 
     public function dispatch()
     {
+
         $path = $this->request->getPath();
         $method = $this->request->getMethod();
-        $callback = $this->routes[$method][$path] ?? false;
+        $routeInfo = $this->routes[$method][$path] ?? false;
+        $callback = $routeInfo['callback'] ?? false;
+
         if ($callback === false) {
 
             foreach ($this->routes[$method] ?? [] as $routePath => $cb) {
@@ -74,36 +86,50 @@ class Router
 
                     if (preg_match("#^$pattern$#", $path, $matches)) {
                         $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
-                        $callback = $cb;
-                        return $this->executeCallback($callback, $params);
+                        $callback = $cb['callback'];
+                        $middleware = $cb['middleware'];
+                        return $this->executeCallback($callback, $params, $middleware);
                     }
                 }
             }
             $this->response->setStatusCode(404);
             return $this->response->view('errors.404', ['view' => $path]);
         }
+        $middleware = $routeInfo['middleware'] ?? [];
 
-        return $this->executeCallback($callback);
+        return $this->executeCallback($callback, [], $middleware);
     }
 
-    private function executeCallback($callback, array $params = [])
+
+    private function executeCallback($callback, array $params = [], array $middleware = [])
     {
-        if (is_array($callback)) {
-            $controller = new $callback[0]($this->request, $this->response);
-            $method = $callback[1];
-            $reflectionMethod = new \ReflectionMethod($controller, $method);
-            $methodParams = $reflectionMethod->getParameters();
-
-            $args = [];
-            foreach ($methodParams as $param) {
-                if (isset($params[$param->getName()])) {
-                    $args[] = $params[$param->getName()];
-                }
+        $finalRequest = function ($request) use ($callback, $params) {
+            if (is_array($callback)) {
+                $controller = new $callback[0]($this->request, $this->response);
+                $method = $callback[1];
+                return call_user_func_array([$controller, $method], $params);
             }
+            return call_user_func($callback, ...array_values($params));
+        };
 
-            return call_user_func_array([$controller, $method], $args);
+        $middlewaresToRun = [];
+        if ($this->globalMiddleware && class_exists($this->globalMiddleware)) {
+            $middlewaresToRun[] = $this->globalMiddleware;
         }
 
-        return call_user_func($callback, ...$params);
+        if (count($middleware)) {
+            $middlewaresToRun = array_merge($middlewaresToRun, $middleware);
+        }
+        $pipeline = array_reduce(
+            array_reverse($middlewaresToRun),
+            function ($next, $middlewareClass) {
+                return function ($request) use ($next, $middlewareClass) {
+                    return (new $middlewareClass)->handle($request, $next);
+                };
+            },
+            $finalRequest
+        );
+
+        return $pipeline($this->request);
     }
 }

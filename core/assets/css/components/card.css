@@ -1,3 +1,5 @@
+@import url('/core/style/layout/layout.css');
+
 :host {
 	background-color: var(--pluto-bg-light);
 	border: 1px solid var(--pluto-border-color);

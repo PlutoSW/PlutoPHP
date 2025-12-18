@@ -186,3 +186,7 @@ pluto-tab {
 pluto-tab[active] {
 	display: block;
 }
+
+pluto-modal{
+	display: none;
+}

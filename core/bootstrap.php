@@ -57,6 +57,7 @@ spl_autoload_register(function ($class) {
 function view(string $view, array $data = []): string
 {
     $template = new \Pluto\Template\Template();
+    $GLOBALS['template'] = $template;
     return $template->render($view, $data);
 }
 
@@ -71,3 +72,12 @@ function __(string $key, array $replace = []): string {
     return \Pluto\Lang::getInstance()?->get($key, $replace) ?? $key;
 }
 
+/**
+ * Get an instance of the response factory.
+ *
+ * @return \Pluto\Response
+ */
+function response(): \Pluto\Response
+{
+    return new \Pluto\Response();
+}
