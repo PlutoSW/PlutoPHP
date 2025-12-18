@@ -1,0 +1,255 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/core/bootstrap.php';
+
+use Pluto\Migrate\MigrationManager;
+
+$argv = $_SERVER['argv'];
+if (count($argv) < 2) {
+    echo "Usage: php pluto <command>\n";
+    echo "Commands:\n";
+    echo "  migrate\n";
+    echo "  migrate:make <name>\n";
+    echo "  migrate:rollback\n";
+    echo "  make:controller <Name>\n";
+    echo "  make:model <Name>\n";
+    echo "  make:view <name>\n";
+    echo "  make:module <Name>\n";
+    exit(1);
+}
+
+$command = $argv[1];
+$args = array_slice($argv, 2);
+
+switch ($command) {
+    case 'migrate':
+        (new MigrationManager())->applyMigrations();
+        break;
+    case 'migrate:make':
+        if (empty($args[0])) {
+            echo "Error: Migration name not specified.\n";
+            echo "Usage: php pluto migrate:make <migration_adi>\n";
+            exit(1);
+        }
+        (new MigrationManager())->createMigration($args[0]);
+        break;
+    case 'migrate:rollback':
+        (new MigrationManager())->rollback();
+        break;
+    case 'make:middleware':
+        makeFile('middleware', $args);
+        break;
+    case 'make:controller':
+        makeFile('controller', $args);
+        break;
+    case 'make:model':
+        makeFile('model', $args);
+        break;
+    case 'make:view':
+        makeFile('view', $args);
+        break;
+    case 'make:module':
+        if (empty($args[0])) {
+            echo "Error: Module name not specified.\n";
+            echo "Usage: php pluto make:module <module_name>\n";
+            exit(1);
+        }
+        $name = $args[0];
+        $modelName = ucfirst($name);
+        $controllerName = ucfirst($name);
+        $viewDir = strtolower($name);
+
+        echo "--- Module Being Created: {$name} ---\n";
+        makeFile('model', [$modelName]);
+        makeFile('controller', [$controllerName]);
+        makeFile('view', ["{$viewDir}.index"]);
+        echo "--- Module Created Successfully! ---\n";
+        break;
+
+    default:
+        echo "Unknown command: $command\n";
+        exit(1);
+}
+
+function makeFile(string $type, array $args)
+{
+    if (empty($args[0])) {
+        echo "Error: File name not specified.\n";
+        echo "Usage: php pluto make:{$type} <DosyaAdı>\n";
+        exit(1);
+    }
+    $name = $args[0];
+    $className = ucfirst(basename(str_replace('.', '/', $name)));
+
+    switch ($type) {
+        case 'controller':
+            $path = BASE_PATH . "/app/Controllers/{$className}.php";
+            $namespace = 'App\Controllers';
+            $viewName = strtolower($name);
+            $stub = <<<PHP
+<?php
+
+namespace {$namespace};
+
+use Pluto\Controller;
+use Pluto\Route;
+
+
+class {$className} extends Controller
+{
+    #[Route('/$viewName', 'GET')]
+    public function index()
+    {
+        \$data = [];
+        return view('{$viewName}.index', \$data);
+    }
+}
+PHP;
+            break;
+        case 'middleware':
+            $path = BASE_PATH . "/app/Middleware/{$className}.php";
+            $namespace = 'App\Middleware';
+            $viewName = strtolower($name);
+            $stub = <<<PHP
+<?php
+
+namespace {$namespace};
+
+use Closure;
+use Pluto\Middleware;
+use Pluto\Request;
+
+class {$className} implements Middleware
+{
+    public function handle(Request \$request, Closure \$next)
+    {
+
+        // Middleware logic goes here
+
+        return \$next(\$request);
+    }
+}
+PHP;
+            break;
+        case 'model':
+            $path = BASE_PATH . "/app/Models/{$className}.php";
+            $namespace = 'App\Models';
+            $tableName = strtolower($name) . 's';
+            $stub = <<<PHP
+<?php
+
+namespace {$namespace};
+
+use Pluto\Model;
+
+class {$className} extends Model
+{
+
+      /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected static string \$table = '{$tableName}';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected array \$fillable = [
+        'name',
+        'email',
+        'password', // Assuming there is a password field
+    ];
+
+    /**
+     * The attributes that should be hidden for arrays.
+     *
+     * @var array
+     */
+    protected array \$hidden = [];
+}
+PHP;
+            break;
+
+        case 'view':
+            $viewsPath = BASE_PATH . '/app/Views/';
+            if (!file_exists($viewsPath . 'partials')) {
+                mkdir($viewsPath . 'partials', 0755, true);
+            }
+            if (!\file_exists($viewsPath . 'app.phtml')) {
+                $html = <<<HTML
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>@yield('title', 'PlutoPHP')</title>
+    @stack('css')
+</head>
+
+<body>
+    @include('partials.header')
+
+    <main class="container">
+        @yield('content')
+    </main>
+
+    @include('partials.footer')
+
+    @stack('js')
+</body>
+
+</html>
+HTML;
+                \file_put_contents($viewsPath . 'app.phtml', $html);
+            }
+
+            if (!file_exists($viewsPath . 'partials/header.phtml')) {
+                \file_put_contents($viewsPath . 'partials/header.phtml', '<header></header>');
+            }
+
+            if (!file_exists($viewsPath . 'partials/footer.phtml')) {
+                \file_put_contents($viewsPath . 'partials/footer.phtml', '<footer></footer>');
+            }
+            $viewPath = str_replace('.', '/', $name);
+            $path = $viewsPath . "{$viewPath}.phtml";
+            $stub = <<<HTML
+@extends('app')
+
+@section('title', '{$className} View')
+@section('content')
+<h1>{$className} View</h1>
+@endsection
+
+@push('js')
+<pluto-script when="DOMContentLoaded">
+    
+</pluto-script>
+@endpush
+HTML;
+            break;
+
+        default:
+            return;
+    }
+
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+
+    if (file_exists($path)) {
+        echo "Error: {$path} already exists.\n";
+        if (isset(debug_backtrace()[1]) && debug_backtrace()[1]['function'] !== 'makeFile') {
+            exit(1);
+        }
+        return;
+    }
+
+    file_put_contents($path, $stub);
+    echo "Created: {$path}\n";
+}
