@@ -263,6 +263,18 @@ class PlutoSelect extends PlutoElement {
 		}
 	}
 
+	onAfterRender() {
+		let options = [...this.wrapper.querySelector("select").options];
+		if (options.length) {
+			let selecteds = options.filter((a) => a.hasAttribute("selected"));
+			if (selecteds.length) {
+				selecteds.forEach((a) => {
+					a.selected = true;
+				});
+			}
+		}
+	}
+
 	render() {
 		return html`
 			<div class="form-group">
@@ -611,13 +623,19 @@ class PlutoAdvancedSelect extends PlutoElement {
 		}
 	}
 
-	onDisconnect() {
-		document.removeEventListener("click", this._boundClickOutside);
-	}
-
 	onPropUpdate(prop, oldValue, newValue) {
 		if (prop === "options") {
 			this._filtered = newValue || [];
+		}
+		if (prop === "open") {
+			if (!newValue) {
+				this.parentNode.removeEventListener("click", this._boundClickOutside);
+				document.removeEventListener("click", this._boundClickOutside);
+			} else {
+				this._boundClickOutside = this._clickOutside.bind(this);
+				this.parentNode.addEventListener("click", this._boundClickOutside);
+				document.addEventListener("click", this._boundClickOutside);
+			}
 		}
 	}
 
@@ -723,7 +741,7 @@ class PlutoAdvancedSelect extends PlutoElement {
 													</li>`;
 											  })
 											: html`<li class="adv-select-option-none">
-													${this.searchError || "No options found"}
+													${this.searchError || __("No options found")}
 											  </li>`}
 									</ul>
 								</div>
