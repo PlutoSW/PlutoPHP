@@ -257,7 +257,7 @@ class PlutoSelect extends PlutoElement {
 			let selected = this.options.find((option) => option.selected);
 			if (selected) {
 				this.value = selected.value;
-			}else{
+			} else {
 				this.value = this.attr("value");
 			}
 		}
@@ -578,14 +578,12 @@ class PlutoAdvancedSelect extends PlutoElement {
 		} else {
 			this.value = this.multiple ? [] : null;
 		}
-		this._boundClickOutside = this._clickOutside.bind(this);
-		document.addEventListener("click", this._boundClickOutside);
 
 		if (this.search) {
 			this.searchValue = "";
 			this.searchError = "";
 			this.searchLoading = false;
-			this.searchPlaceholder = "Search";
+			this.searchPlaceholder = __("table.search");
 			let searchInput = document.createElement("pluto-input");
 			searchInput.setAttribute("slot", "search");
 			searchInput.setAttribute("placeholder", this.searchPlaceholder);
