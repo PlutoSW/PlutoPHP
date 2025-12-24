@@ -60,5 +60,4 @@ return [
     'validation.selection_required' => 'Lütfen bir seçim yapın.',
 
     'navigation.home'               => 'Ana Sayfa',
-    'No options found'              => 'Hiçbir seçenek bulunamadı.',
 ];

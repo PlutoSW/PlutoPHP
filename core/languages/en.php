@@ -60,5 +60,4 @@ return [
     'validation.selection_required' => 'Please select an option.',
 
     'navigation.home'               => 'Home Page',
-    'No options found'              => 'No options found.',
 ];

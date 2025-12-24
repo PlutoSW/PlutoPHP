@@ -10,7 +10,7 @@
 	border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb {
-	background: var(--pluto-secondary-color-dark);
+	background: var(--pluto-text-color-dark);
 	border-radius: 10px;
 }
 * {
