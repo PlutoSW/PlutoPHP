@@ -1,0 +1,13 @@
+{
+    "name": "plutosw/plutophp",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "PlutoSW"
+        }
+    ],
+   "minimum-stability": "stable",
+   "prefer-stable": true,
+   "require": {}
+}
