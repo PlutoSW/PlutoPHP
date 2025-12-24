@@ -12,3 +12,4 @@
 
 .aiexclude
 .vscode
+composer.lock
