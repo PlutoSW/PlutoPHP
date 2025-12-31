@@ -23,6 +23,21 @@ class PlutoUI
             $content = file_get_contents(BASE_PATH . '/core/assets/css/Pluto.css');
             $content .= file_get_contents(BASE_PATH . '/core/assets/css/layout/layout.css');
         }
+
+
+        //replace @import to content
+        $content = preg_replace_callback('/@import\s+(?:url\([\'"]?([^\'"]+)[\'"]?\)|[\'"]([^\'"]+)[\'"]);/', function ($matches) {
+            $url = $matches[1] ?? $matches[2];
+            if (str_contains($url, '/core/style/')) {
+                $file = str_replace('/core/style/', '', $url);
+                $path = BASE_PATH . '/core/assets/css/' . $file;
+                if (file_exists($path)) {
+                    return file_get_contents($path);
+                }
+            }
+            return $matches[0];
+        }, $content);
+
         if (\getenv('MINIFY') === 'true') {
             $content = preg_replace(['/\/\*(.|\s)*?\*\//', '/\s*([{}|:;,])\s*/', '/\s\s+/', '/`/'], ['', '$1', ' ', '\\`'], $content);
         }

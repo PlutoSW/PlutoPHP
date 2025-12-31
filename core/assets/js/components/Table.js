@@ -252,9 +252,9 @@ class PlutoTable extends PlutoElement {
 	}
 
 	rowTemplates(templates = {}) {
-		Object.keys(templates).forEach((key) => {
-			if (Object.hasOwnProperty.call(this._columns, key)) {
-				this._columns[key].template = templates[key];
+		this._columns.forEach((col) => {
+			if (templates[col.name]) {
+				col.template = templates[col.name];
 			}
 		});
 		return this;
