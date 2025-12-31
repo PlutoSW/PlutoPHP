@@ -59,10 +59,10 @@ class Table
                 [$relationName, $fieldName] = explode('.', $sortKey, 2);
 
                 $mainModel = $this->query->getModel();
-                $relation = $mainModel->{$relationName}();
+                $relation = (new $mainModel)->{$relationName}();
 
-                $relatedTable = $relation->getQuery()->table;
-                $mainTable = $this->query->table;
+                $relatedTable = $relation->getQuery()->getTable();
+                $mainTable = $this->query->getTable();
                 $foreignKey = $relation->getForeignKeyName();
                 $ownerKey = $relation->getOwnerKeyName();
 
@@ -72,7 +72,7 @@ class Table
                 $this->query->orderBy("{$relatedTable}.{$fieldName}", $sortOrder);
             } else {
 
-                $this->query->orderBy("{$this->query->table}.{$sortKey}", $sortOrder);
+                $this->query->orderBy("{$this->query->getTable()}.{$sortKey}", $sortOrder);
             }
         }
         $currentPage = (int)$this->request->get('page', 1);
@@ -82,8 +82,7 @@ class Table
             $this->query->limit($rowsLength)->offset(($currentPage - 1) * $rowsLength);
         }
 
-
-        $data = $this->query->get();
+        $data = $this->query->toArray();
         if (isset($this->_beforeExecute)) {
             ($this->_beforeExecute)($data);
         }

@@ -2,454 +2,463 @@
 
 namespace Pluto\Orm\MySQL;
 
-use PDO;
-use Pluto\Model;
-
+use \Closure;
+use \PDO;
 
 class QueryBuilder
 {
-    protected PDO $pdo;
-    public string $table;
-    protected Model $model;
-
-    protected string $select = '*';
+    protected string $table;
     protected array $wheres = [];
     protected array $bindings = [];
-    protected ?string $orderBy = null;
-    protected ?string $limit = null;
-    protected ?string $offset = null;
-    protected array $with = [];
+    protected array $selects = ['*'];
+    protected array $orders = [];
+    protected ?int $limit = null;
+    protected ?int $offset = null;
     protected array $joins = [];
+    protected array $groups = [];
+    protected array $havings = [];
+    protected array $with = [];
+    protected array $rows = [];
+    protected ?string $modelClass = null;
 
-    public function __construct(string $modelClass)
+    public function __construct(string $table)
     {
-        $this->pdo = Database::getInstance();
-        $this->model = new $modelClass;
-        $this->table = $this->model->getTableName();
+        $this->table = $table;
+        Database::connect([
+            'host' => getenv('DB_HOST'),
+            'database' => getenv('DB_NAME'),
+            'username' => getenv('DB_USERNAME'),
+            'password' => getenv('DB_PASSWORD'),
+            'driver' => getenv('DB_DRIVER') ?: 'mysql',
+            'charset' => getenv('DB_CHARSET') ?: 'utf8mb4',
+        ]);
     }
 
-    protected function quoteIdentifier(string $identifier): string
+    public static function table(string $table): self
     {
-        // Handle table.column format
-        if (str_contains($identifier, '.')) {
-            return implode('.', array_map(fn ($part) => "`{$part}`", explode('.', $identifier)));
+        return new self($table);
+    }
+
+    public function getTable(): string
+    {
+        return $this->table;
+    }
+
+    public function getBindings(): array
+    {
+        return $this->bindings;
+    }
+
+    public function getModel(): ?string
+    {
+        return $this->modelClass;
+    }
+
+
+    public function select(...$cols): self
+    {
+        if (count($cols) === 1 && is_array($cols[0])) $cols = $cols[0];
+        $this->selects = $cols ?: ['*'];
+        return $this;
+    }
+
+    public function model(string $class): self
+    {
+        $this->modelClass = $class;
+        return $this;
+    }
+
+    protected function addWhere(string $boolean, $column, $operator = null, $value = null): self
+    {
+        if (is_array($column)) {
+            foreach ($column as $k => $v) {
+                $this->addWhere('and', $k, '=', $v);
+            }
+            return $this;
         }
 
-        // Handle simple column name
-        return "`{$identifier}`";
+        if ($column instanceof Closure) {
+            $nested = new self($this->table);
+            $column($nested);
+            $this->wheres[] = ['type' => 'nested', 'boolean' => $boolean, 'query' => $nested];
+            $this->bindings = array_merge($this->bindings, $nested->bindings);
+            return $this;
+        }
+
+        if (func_num_args() === 2) { // where('username','value') shorthand
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if ($operator === null) $operator = '=';
+
+        $placeholder = ':p' . count($this->bindings);
+        $this->wheres[] = ['type' => 'basic', 'boolean' => $boolean, 'column' => $column, 'operator' => $operator, 'placeholder' => $placeholder];
+        $this->bindings[$placeholder] = $value;
+        return $this;
     }
+
 
     public function where($column, $operator = null, $value = null): self
     {
-
         if ($column instanceof \Closure) {
-            $this->addNestedWhereQuery($column);
-            return $this;
+            return $this->addNestedWhere('and', $column);
         }
-        $quotedColumn = $this->quoteIdentifier($column);
 
-        if (is_null($value) && in_array(strtoupper(trim($operator)), ['IS', 'IS NOT'])) {
-            $boolean = empty($this->wheres) ? '' : 'AND ';
-            $this->wheres[] = "{$boolean}{$quotedColumn} {$operator} NULL";
-        } else {
-            $boolean = empty($this->wheres) ? '' : 'AND ';
-            $this->wheres[] = "{$boolean}{$quotedColumn} {$operator} ?";
-            $this->bindings[] = $value;
-        }
-        return $this;
+        return $this->addWhere('and', $column, $operator, $value);
     }
 
-    public function orWhere($column, $operator = null, $value = null, $boolean = 'OR'): self
+    public function orWhere($column, $operator = null, $value = null): self
     {
-
         if ($column instanceof \Closure) {
-            $this->addNestedWhereQuery($column, 'OR');
-            return $this;
+            return $this->addNestedWhere('or', $column);
         }
-        $quotedColumn = $this->quoteIdentifier($column);
 
-        if (is_null($value) && in_array(strtoupper(trim($operator)), ['IS', 'IS NOT'])) {
-            $boolean = empty($this->wheres) ? '' : "{$boolean} ";
-            $this->wheres[] = "{$boolean}{$quotedColumn} {$operator} NULL";
-        } else {
-            $boolean = empty($this->wheres) ? '' : "{$boolean} ";
-            $this->wheres[] = "{$boolean}{$quotedColumn} {$operator} ?";
-            $this->bindings[] = $value;
-        }
-        return $this;
+        return $this->addWhere('or', $column, $operator, $value);
     }
 
-    /**
-     * Add a nested where statement to the query.
-     *
-     * @param \Closure $callback
-     * @param string $boolean
-     * @return void
-     */
-    protected function addNestedWhereQuery(\Closure $callback, string $boolean = 'AND')
+    protected function addNestedWhere(string $boolean, \Closure $callback): self
     {
-        $query = new self(get_class($this->model));
-        $callback($query);
+        $nested = new self($this->table);
+        $nested->model($this->modelClass);
 
-        if (!empty($query->wheres)) {
-            $nestedWheres = ltrim(implode(' ', $query->wheres), 'AND OR ');
-            $this->wheres[] = (empty($this->wheres) ? '' : "{$boolean} ") . "({$nestedWheres})";
-            $this->bindings = array_merge($this->bindings, $query->getBindings());
-        }
-    }
+        $callback($nested);
 
-    /**
-     * Add a "where has" clause to the query.
-     *
-     * @param string $relationName
-     * @param callable $callback
-     * @param string $boolean
-     * @return self
-     */
-    public function whereHas(string $relationName, callable $callback, string $boolean = 'AND'): self
-    {
-        $relation = $this->model->{$relationName}();
-        $relationQuery = $relation->getQuery();
+        $this->wheres[] = [
+            'type'    => 'nested',
+            'boolean' => $boolean,
+            'query'   => $nested
+        ];
 
-
-        call_user_func($callback, $relationQuery);
-
-        $relationTable = $relationQuery->table;
-        $foreignKey = $relation->getForeignKeyName();
-        $ownerKey = $relation->getOwnerKeyName();
-
-        $subQuery = "EXISTS (SELECT * FROM `{$relationTable}` WHERE `{$this->table}`.`{$foreignKey}` = `{$relationTable}`.`{$ownerKey}` AND " . ltrim(implode(' ', $relationQuery->wheres), 'AND OR ') . ")";
-
-        $this->wheres[] = (empty($this->wheres) ? '' : "{$boolean} ") . $subQuery;
-        $this->bindings = array_merge($this->bindings, $relationQuery->bindings);
+        $this->bindings = array_merge($this->bindings, $nested->bindings);
 
         return $this;
     }
 
-    public function orWhereHas(string $relationName, callable $callback): self
+    public function whereIn(string $column, array $values, string $boolean = 'and'): self
     {
-        return $this->whereHas($relationName, $callback, 'OR');
-    }
-
-    public function join(string $table, string $firstColumn, string $operator, string $secondColumn, string $type = 'INNER', string $as = ""): self
-    {
-        $jn = "{$type} JOIN `{$table}` ON {$firstColumn} {$operator} {$secondColumn}";
-        if ($as) {
-            $jn .= " AS {$as}";
+        $placeholders = [];
+        foreach ($values as $v) {
+            $ph = ':p' . count($this->bindings);
+            $this->bindings[$ph] = $v;
+            $placeholders[] = $ph;
         }
-        $this->joins[] = $jn;
+        $this->wheres[] = ['type' => 'in', 'boolean' => $boolean, 'column' => $column, 'placeholders' => $placeholders, 'not' => false];
         return $this;
     }
 
-    public function leftJoin(string $table, string $firstColumn, string $operator, string $secondColumn, string $as = ""): self
+    public function whereNotIn(string $column, array $values, string $boolean = 'and'): self
     {
-        return $this->join($table, $firstColumn, $operator, $secondColumn, 'LEFT', $as);
-    }
-
-    public function rightJoin(string $table, string $firstColumn, string $operator, string $secondColumn, string $as = ""): self
-    {
-        return $this->join($table, $firstColumn, $operator, $secondColumn, 'RIGHT', $as);
-    }
-
-    public function select(string|array $columns): self
-    {
-        $this->select = is_array($columns) ? implode(', ', $columns) : $columns;
+        $this->whereIn($column, $values, $boolean);
+        $this->wheres[array_key_last($this->wheres)]['not'] = true;
         return $this;
     }
 
-    public function whereIn(string $column, array $values, string $boolean = 'AND'): self
+    public function whereNull(string $column, string $boolean = 'and'): self
     {
-        if (empty($values)) {
-            $this->wheres[] = ($boolean === 'AND' ? '1=0' : '0=1');
-            return $this;
-        }
-        $placeholders = implode(',', array_fill(0, count($values), '?'));
-        $boolean = empty($this->wheres) ? '' : "{$boolean} ";
-        $this->wheres[] = "{$boolean}`{$column}` IN ({$placeholders})";
-        $this->bindings = array_merge($this->bindings, $values);
+        $this->wheres[] = ['type' => 'null', 'boolean' => $boolean, 'column' => $column, 'not' => false];
         return $this;
+    }
+
+    public function whereNotNull(string $column, string $boolean = 'and'): self
+    {
+        $this->wheres[] = ['type' => 'null', 'boolean' => $boolean, 'column' => $column, 'not' => true];
+        return $this;
+    }
+
+    public function join(string $table, string $first, string $operator, string $second, string $type = 'INNER'): self
+    {
+        $this->joins[] = compact('type', 'table', 'first', 'operator', 'second');
+        return $this;
+    }
+
+    public function leftJoin(string $table, string $first, string $operator, string $second): self
+    {
+        return $this->join($table, $first, $operator, $second, 'LEFT');
     }
 
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
-        $this->orderBy = "ORDER BY {$column} {$direction}";
+        $this->orders[] = [$column, strtoupper($direction)];
         return $this;
     }
 
-    public function limit(int $number): self
+    public function limit(int $limit): self
     {
-        $this->limit = "LIMIT $number";
+        $this->limit = $limit;
         return $this;
     }
 
-    public function offset(int $number): self
+    public function offset(int $offset): self
     {
-        $this->offset = "OFFSET $number";
+        $this->offset = $offset;
         return $this;
     }
 
-    public function with(array|string $relations): self
+    // alias
+    public function skip(int $offset): self
     {
-        $this->with = is_array($relations) ? $relations : [$relations];
+        return $this->offset($offset);
+    }
+
+    public function groupBy(...$columns): self
+    {
+        $this->groups = array_merge($this->groups, $columns);
         return $this;
     }
 
-    public function get(): Collection
+    public function having(string $column, string $operator, $value): self
+    {
+        $ph = ':p' . count($this->bindings);
+        $this->bindings[$ph] = $value;
+        $this->havings[] = compact('column', 'operator', 'ph');
+        return $this;
+    }
+
+    public function with(array $relations): self
+    {
+        // relations in form ['relation', 'relation2' => fn($q){...}]
+        $this->with = $relations;
+        return $this;
+    }
+
+    protected function compileSelect(): string
+    {
+        $sql = 'SELECT ' . implode(', ', $this->selects) . ' FROM ' . $this->table;
+        if ($this->joins) {
+            foreach ($this->joins as $j) {
+                $sql .= " {$j['type']} JOIN {$j['table']} ON {$j['first']} {$j['operator']} {$j['second']}";
+            }
+        }
+        if ($this->wheres) {
+            $sql .= ' WHERE ' . $this->compileWheres($this->wheres);
+        }
+        if ($this->groups) $sql .= ' GROUP BY ' . implode(', ', $this->groups);
+        if ($this->havings) {
+            $parts = array_map(fn($h) => "{$h['column']} {$h['operator']} {$h['ph']}", $this->havings);
+            $sql .= ' HAVING ' . implode(' AND ', $parts);
+        }
+        if ($this->orders) $sql .= ' ORDER BY ' . implode(', ', array_map(fn($o) => "{$o[0]} {$o[1]}", $this->orders));
+        if ($this->limit !== null) $sql .= ' LIMIT ' . (int)$this->limit;
+        if ($this->offset !== null) $sql .= ' OFFSET ' . (int)$this->offset;
+        return $sql;
+    }
+
+
+    public function debugSql(): string
     {
         $sql = $this->toSql();
 
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($this->bindings);
+        $bindings = $this->bindings;
 
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $collection = $this->hydrate($results);
-
-        if (!empty($this->with)) {
-            $this->loadRelations($collection);
-        }
-
-        return $collection;
-    }
-
-    public function count(): int
-    {
-        $sql = "SELECT COUNT(*) FROM {$this->table}";
-
-        if (!empty($this->joins)) {
-            $sql .= ' ' . implode(' ', $this->joins);
-        }
-
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
-        }
-
-        if ($this->orderBy) {
-            $sql .= " " . $this->orderBy;
-        }
-
-        if ($this->limit) {
-            $sql .= " " . $this->limit;
-        }
-
-        if ($this->offset) {
-            $sql .= " " . $this->offset;
-        }
-        
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($this->bindings);
-        return (int) $stmt->fetchColumn();
-    }
-
-    public function debugSql($sql=null): void
-    {
-        $sql = $sql ?? $this->toSql();
-        $bindings = $this->getBindings();
-
-        $i = 0;
-        $rawSql = preg_replace_callback('/\?/', function ($match) use ($bindings, &$i) {
-            if (!isset($bindings[$i])) {
-                return $match[0]; // Eşleşen ? yoksa, olduğu gibi bırak
+        foreach ($bindings as $key => $value) {
+            if (is_string($value)) {
+                $value = "'" . str_replace("'", "''", $value) . "'";
+            } elseif ($value === null) {
+                $value = 'NULL';
             }
-            $value = $bindings[$i];
-            $i++;
 
-            if (is_null($value)) return 'NULL';
-            if (is_string($value)) return "'" . addslashes($value) . "'";
-            return $value;
-        }, $sql);
-
-        echo $rawSql;
-        exit;
-    }
-
-    public function all(): Collection
-    {
-        return $this->get();
-    }
-
-    public function first()
-    {
-        $this->limit(1);
-        $results = $this->get();
-        return $results->first();
-    }
-
-    public function find(int $id)
-    {
-        return $this->where('id', '=', $id);
-    }
-
-    public function insert(array $values): bool
-    {
-        $columns = implode(', ', array_keys($values));
-        $placeholders = implode(', ', array_fill(0, count($values), '?'));
-        $sql = "INSERT INTO {$this->table} ({$columns}) VALUES ({$placeholders})";
-
-        $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute(array_values($values));
-    }
-
-    public function update(array $values): bool
-    {
-        $setClauses = [];
-        $updateBindings = [];
-        foreach ($values as $column => $value) {
-            $setClauses[] = "{$column} = ?";
-            $updateBindings[] = $value;
-        }
-        $sql = "UPDATE {$this->table} SET " . implode(', ', $setClauses);
-
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
-        }
-        $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute(array_merge($updateBindings, $this->bindings));
-    }
-
-    public function sum(string $column): float
-    {
-        $sql = "SELECT SUM(`{$column}`) FROM {$this->table}";
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
-        }
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($this->bindings);
-        $result = $stmt->fetchColumn();
-        return (float) ($result ?? 0.0);
-    }
-
-    public function delete(): bool
-    {
-        $sql = "DELETE FROM {$this->table}";
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
-        }
-        $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute($this->bindings);
-    }
-
-    public function softDelete(): bool
-    {
-        $sql = "UPDATE {$this->table} SET deleted_at = NOW()";
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
-        }
-        $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute($this->bindings);
-    }
-
-    public function lastInsertId(): int
-    {
-        return (int) $this->pdo->lastInsertId();
-    }
-
-    public function toSql(): string
-    {
-        $sql = "SELECT {$this->select} FROM {$this->table}";
-
-        if (!empty($this->joins)) {
-            $sql .= ' ' . implode(' ', $this->joins);
-        }
-
-        if (!empty($this->wheres)) {
-            $sql .= " WHERE " . ltrim(implode(' ', $this->wheres), 'AND OR ');
-        }
-
-        if ($this->orderBy) {
-            $sql .= " " . $this->orderBy;
-        }
-
-        if ($this->limit) {
-            $sql .= " " . $this->limit;
-        }
-
-        if ($this->offset) {
-            $sql .= " " . $this->offset;
+            $sql = preg_replace('/' . preg_quote($key, '/') . '\b/', $value, $sql, 1);
         }
 
         return $sql;
     }
 
-    /**
-     * Hydrate the results into a collection of models.
-     *
-     * @param array $items
-     * @return Collection
-     */
-    public function hydrate(array $items): Collection
+    protected function compileWheres(array $wheres): string
     {
-        $instances = array_map(function ($item) {
-            return $this->model->newInstance($item, true);
-        }, $items);
-
-        return new Collection($instances);
-    }
-
-    /**
-     * Eager load the relationships for a collection of models.
-     *
-     * @param Collection $collection
-     */
-    protected function loadRelations(Collection $collection)
-    {
-        if ($collection->count() === 0) {
-            return;
-        }
-
-        foreach ($this->with as $relationName) {
-
-
-            $relation = $this->model->{$relationName}();
-
-            if (method_exists($relation, 'getRelationType') && $relation->getRelationType() === 'belongsTo') {
-                $foreignKey = $relation->getForeignKeyName();
-                $ownerKey = $relation->getOwnerKeyName();
-
-
-                $foreignKeyValues = $collection->map(function ($model) use ($foreignKey) {
-                    return $model->{$foreignKey};
-                })->all();
-
-
-                $relatedModels = $relation->whereIn($ownerKey, array_unique(array_filter($foreignKeyValues)))->get();
-
-
-                $relatedModelsById = [];
-                foreach ($relatedModels as $relatedModel) {
-                    $relatedModelsById[$relatedModel->{$ownerKey}] = $relatedModel;
-                }
-
-
-                foreach ($collection as $model) {
-                    $foreignKeyValue = $model->{$foreignKey};
-                    if (isset($relatedModelsById[$foreignKeyValue])) {
-                        $model->setRelation($relationName, $relatedModelsById[$foreignKeyValue]);
-                    }
-                }
-            } else {
+        $sql = '';
+        foreach ($wheres as $i => $w) {
+            $boolean = ($i === 0) ? '' : ' ' . strtoupper($w['boolean']) . ' ';
+            if ($w['type'] === 'basic') {
+                $sql .= $boolean . "{$w['column']} {$w['operator']} {$w['placeholder']}";
+            } elseif ($w['type'] === 'in') {
+                $list = implode(', ', $w['placeholders']);
+                $not = $w['not'] ? ' NOT' : '';
+                $sql .= $boolean . "{$w['column']}{$not} IN ({$list})";
+            } elseif ($w['type'] === 'null') {
+                $not = $w['not'] ? ' IS NOT NULL' : ' IS NULL';
+                $sql .= $boolean . "{$w['column']}{$not}";
+            } elseif ($w['type'] === 'nested') {
+                $nestedSql = $w['query']->compileWheres($w['query']->wheres);
+                $sql .= $boolean . '(' . $nestedSql . ')';
             }
         }
+        return $sql;
     }
 
-    /**
-     * Get the model instance for the query.
-     *
-     * @return \Pluto\Model
-     */
-    public function getModel(): \Pluto\Model
+    public function toSql(): string
     {
-        return $this->model;
+        return $this->compileSelect();
     }
 
-    /**
-     * Get the query bindings.
-     *
-     * @return array
-     */
-    public function getBindings(): array
+    public function get(array $columns = []): array
     {
-        return $this->bindings;
+        if ($columns) $this->select(...$columns);
+        $sql = $this->compileSelect();
+        $stmt = Database::pdo()->prepare($sql);
+        $stmt->execute($this->bindings);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $this->rows = $rows;
+        if ($this->modelClass) {
+            $models = array_map(fn($r) => new $this->modelClass($r), $rows);
+            if ($this->with) $this->eagerLoadRelations($models);
+            return $models;
+        }
+
+        return $rows;
+    }
+
+    public function toArray(array $columns = []): array
+    {
+        if (empty($this->rows)) {
+            if ($columns) $this->select(...$columns);
+            $sql = $this->compileSelect();
+            $stmt = Database::pdo()->prepare($sql);
+            $stmt->execute($this->bindings);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $this->rows = $rows;
+        }
+        return $this->rows;
+    }
+
+
+    public function first(): ?object
+    {
+        $this->limit(1);
+        $results = $this->get();
+        return $results[0] ?? null;
+    }
+
+    public function count(): int
+    {
+        $prev = $this->selects;
+        $this->selects = ['COUNT(*) as aggregate'];
+        $sql = $this->compileSelect();
+        $stmt = Database::pdo()->prepare($sql);
+        $stmt->execute($this->bindings);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $this->selects = $prev;
+        return (int)($row['aggregate'] ?? 0);
+    }
+
+    public function insert(array $data): bool
+    {
+        $cols = array_keys($data);
+        $placeholders = [];
+        $bindings = [];
+        foreach ($data as $k => $v) {
+            $ph = ':' . $k;
+            $placeholders[] = $ph;
+            $bindings[$ph] = $v;
+        }
+        $sql = 'INSERT INTO ' . $this->table . ' (' . implode(', ', $cols) . ') VALUES (' . implode(', ', $placeholders) . ')';
+        $stmt = Database::pdo()->prepare($sql);
+        return $stmt->execute($bindings);
+    }
+
+    public function insertGetId(array $data): int
+    {
+        $this->insert($data);
+        return (int)Database::pdo()->lastInsertId();
+    }
+
+    public function update(array $data): int
+    {
+        $sets = [];
+        $bindings = $this->bindings; // keep where bindings
+        foreach ($data as $k => $v) {
+            $ph = ':u' . count($bindings);
+            $bindings[$ph] = $v;
+            $sets[] = "{$k} = {$ph}";
+        }
+        $sql = 'UPDATE ' . $this->table . ' SET ' . implode(', ', $sets);
+        if ($this->wheres) $sql .= ' WHERE ' . $this->compileWheres($this->wheres);
+        $stmt = Database::pdo()->prepare($sql);
+        $stmt->execute($bindings);
+        return $stmt->rowCount();
+    }
+
+    public function delete(): int
+    {
+        $sql = 'DELETE FROM ' . $this->table;
+        if ($this->wheres) $sql .= ' WHERE ' . $this->compileWheres($this->wheres);
+        $stmt = Database::pdo()->prepare($sql);
+        $stmt->execute($this->bindings);
+        return $stmt->rowCount();
+    }
+
+    // Raw expression
+    public function raw(string $sql, array $bindings = [])
+    {
+        $stmt = Database::pdo()->prepare($sql);
+        $stmt->execute($bindings);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    protected function eagerLoadRelations(array &$models): void
+    {
+        if (!$this->modelClass) return;
+        $m = new $this->modelClass();
+        foreach ($this->with as $key => $constraint) {
+            $name = is_int($key) ? $constraint : $key;
+            $constraintFn = is_int($key) ? null : $constraint;
+            if (!method_exists($m, $name)) continue;
+            // collect keys
+            $relation = $m->$name();
+            if (!($relation instanceof Relation)) continue;
+            $relatedModels = $relation->eagerLoad($models, $constraintFn);
+            // attach to parents inside relation->attach
+            $relation->attach($models, $relatedModels);
+        }
+    }
+
+
+    public function whereHas(string $relation, \Closure $callback): self
+    {
+        return $this->addWhereHas('and', $relation, $callback);
+    }
+
+    public function orWhereHas(string $relation, \Closure $callback): self
+    {
+        return $this->addWhereHas('or', $relation, $callback);
+    }
+
+    protected function addWhereHas(string $boolean, string $relation, \Closure $callback): self
+    {
+        if (!$this->modelClass) {
+            throw new \Exception('whereHas requires model context');
+        }
+
+        $model = new $this->modelClass();
+
+        if (!method_exists($model, $relation)) {
+            throw new \Exception("Relation {$relation} not found");
+        }
+
+        /** @var Relation $rel */
+        $rel = $model->$relation();
+
+        $sub = QueryBuilder::table($rel->getRelatedTable());
+        $sub->model($rel->getRelatedClass());
+
+        $callback($sub);
+
+        // EXISTS subquery
+        $sql = 'EXISTS (
+        SELECT 1 FROM ' . $rel->getRelatedTable() . '
+        WHERE ' . $rel->getRelatedTable() . '.' . $rel->getForeignKeyName() . ' = '
+            . $this->table . '.' . $rel->getLocalKeyName() . '
+        AND ' . $sub->compileWheres($sub->wheres) . '
+    )';
+
+        $this->wheres[] = [
+            'type'    => 'raw',
+            'boolean' => $boolean,
+            'sql'     => $sql
+        ];
+
+        $this->bindings = array_merge($this->bindings, $sub->bindings);
+
+        return $this;
     }
 }
