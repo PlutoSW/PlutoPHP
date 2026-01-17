@@ -14,7 +14,7 @@ class Schema
         
         $sql = $blueprint->toSql();
         
-        $pdo = Database::getInstance();
+        $pdo = Database::pdo();
         $pdo->exec($sql);
     }
 
@@ -25,7 +25,7 @@ class Schema
 
         $sqls = $blueprint->toSql();
 
-        $pdo = Database::getInstance();
+        $pdo = Database::pdo();
         foreach (explode(';', $sqls) as $sql) {
             if (trim($sql)) {
                 $pdo->exec($sql);
@@ -40,7 +40,7 @@ class Schema
 
     public static function dropIfExists(string $table)
     {
-        $pdo = Database::getInstance();
+        $pdo = Database::pdo();
         $sql = "DROP TABLE IF EXISTS `{$table}`;";
         $pdo->exec($sql);
     }

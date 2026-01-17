@@ -12,7 +12,7 @@ class MigrationManager
 
     public function __construct()
     {
-        $this->pdo = Database::getInstance();
+        $this->pdo = Database::pdo();
         $this->migrationsPath = BASE_PATH . '/storage/migrations';
         if(!\file_exists($this->migrationsPath)){
             mkdir($this->migrationsPath, 0755, true);
