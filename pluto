@@ -4,7 +4,25 @@
 require_once __DIR__ . '/core/bootstrap.php';
 
 use Pluto\Migrate\MigrationManager;
-
+function connectToDatabase()
+{
+    try {
+        Pluto\Orm\MySQL\Database::connect([
+            'driver' => $_ENV['DB_CONNECTION'] ?? 'mysql',
+            'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
+            'database' => $_ENV['DB_DATABASE'] ?? '',
+            'username' => $_ENV['DB_USERNAME'] ?? '',
+            'password' => $_ENV['DB_PASSWORD'] ?? '',
+            'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
+        ]);
+    } catch (PDOException $e) {
+        echo "Error: Database connection failed.\n";
+        echo "Please ensure your .env file is configured correctly.\n";
+        echo "PDO Error: " . $e->getMessage() . "\n";
+        exit(1);
+    }
+}
+connectToDatabase();
 $argv = $_SERVER['argv'];
 if (count($argv) < 2) {
     echo "Usage: php pluto <command>\n";
