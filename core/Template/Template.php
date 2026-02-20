@@ -35,7 +35,8 @@ class Template
         'array_map',
         'toPrice',
         'print_r',
-        'var_dump'
+        'var_dump',
+        'default'
     ];
 
     public function __construct()
@@ -209,6 +210,9 @@ class Template
                 }
                 if ($filterName === 'array_map' || $filterName === 'str_replace') {
                     $output = sprintf('%s(%s, %s)', $filterName, trim(ltrim($filterArgs, ', ')), $output);
+                } else if ($filterName === 'default') {
+                    $defaultValue = trim(ltrim($filterArgs, ', '));
+                    $output = "({$output}!==null) ? {$output} : {$defaultValue}";
                 } elseif ($filterName === 'toPrice') {
                     $output = \sprintf('$GLOBALS["template"]::toPrice(%s, "%s", "%s")', $output, $filterParts[1], $filterParts[2]);
                 } elseif ($filterName === 'json_encode') {
