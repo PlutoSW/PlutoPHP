@@ -1,0 +1,34 @@
+:host {
+	display: block;
+	font-family: var(--pluto-font-family);
+	border: 1px solid var(--pluto-border-color);
+	border-radius: var(--pluto-border-radius);
+	background-color: var(--pluto-bg-light);
+}
+.tab-header {
+	display: flex;
+	border-bottom: 1px solid var(--pluto-border-color);
+	padding: 0 var(--pluto-padding);
+}
+.tab-button {
+	padding: var(--pluto-padding);
+	cursor: pointer;
+	border: none;
+	background: none;
+	font-size: 0.95rem;
+	color: var(--pluto-text-color);
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+	transition: color 0.2s ease-in-out, border-bottom-color 0.2s ease-in-out;
+}
+.tab-button:hover {
+	color: var(--pluto-text-color-dark);
+}
+.tab-button.active {
+	color: var(--pluto-primary-color);
+	border-bottom-color: var(--pluto-primary-color);
+	font-weight: 600;
+}
+.tab-content p {
+	margin: var(--pluto-margin);
+}

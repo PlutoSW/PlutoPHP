@@ -1,0 +1,100 @@
+@import url('/core/style/layout/layout.css');
+
+:host([open]){
+	display: flex !important;
+}
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: var(--pluto-modal-overlay-bg);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.modal {
+	background: var(--pluto-bg-light);
+	border-radius: var(--pluto-border-radius);
+	box-shadow: var(--pluto-box-shadow);
+	animation: slideUp 0.3s ease;
+	max-height: 90vh;
+	overflow: auto;
+	display: flex;
+	flex-direction: column;
+}
+
+@keyframes slideUp {
+	from {
+		transform: translateY(50px);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes slideDown {
+	from {
+		transform: translateY(0);
+		opacity: 1;
+	}
+	to {
+		transform: translateY(50px);
+		opacity: 0;
+	}
+}
+
+:host([sm]) .modal {
+	width: 400px;
+}
+:host([md]) .modal {
+	width: 500px;
+}
+:host([lg]) .modal {
+	width: 800px;
+}
+
+.modal-header {
+	padding: calc(var(--pluto-padding) * 0.625) calc(var(--pluto-padding) * 0.875);
+	border-bottom: 1px solid var(--pluto-border-color);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+.modal-header h3 {
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--pluto-text-color-dark) !important;
+	margin: 0 !important;
+}
+.close {
+	border: none;
+	background: none;
+	font-size: 28px;
+	cursor: pointer;
+	color: var(--pluto-text-color);
+	padding: 0;
+	width: 32px;
+	height: 32px;
+}
+.close:hover {
+	color: var(--pluto-text-color-dark);
+}
+.modal-body {
+	padding: calc(var(--pluto-padding) * 0.875);
+	overflow: auto;
+	max-height: 100%;
+}

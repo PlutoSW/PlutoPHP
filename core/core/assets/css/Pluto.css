@@ -1,0 +1,192 @@
+@import url("https://fonts.googleapis.com/css?family=Roboto");
+@font-face {
+	font-family: 'PlutoIcon';
+	src: url("/core/assets/fonts/pluto-icon.woff2?3189123") format("woff2");
+	font-weight: normal;
+	font-style: normal;
+}
+:root {
+	--pluto-primary-color: #007bff;
+	--pluto-secondary-color: #6c757d;
+	--pluto-success-color: #28a745;
+	--pluto-danger-color: #dc3545;
+	--pluto-warning-color: #ffc107;
+	--pluto-info-color: #17a2b8;
+
+	--pluto-primary-color-dark: #0056b3;
+	--pluto-secondary-color-dark: #545b62;
+	--pluto-success-color-dark: #1e7e34;
+	--pluto-danger-color-dark: #b02a37;
+
+	--pluto-text-color: #333;
+	--pluto-text-color-light: #ffffff;
+	--pluto-text-color-dark: #111;
+	--pluto-bg-color: #f4f7f6;
+	--pluto-bg-light: #ffffff;
+	--pluto-bg-dark: #e9ecef;
+	--pluto-border-color: #dee2e6;
+	--pluto-border-radius: 8px;
+	--pluto-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	--pluto-modal-overlay-bg: rgba(0, 0, 0, 0.5);
+	--pluto-font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+	--pluto-success-bg: #d1e7dd;
+	--pluto-success-border: #badbcc;
+	--pluto-success-text: #0f5132;
+	--pluto-danger-bg: #f8d7da;
+	--pluto-danger-border: #f5c2c7;
+	--pluto-danger-text: #842029;
+	--pluto-warning-bg: #fff3cd;
+	--pluto-warning-border: #ffecb5;
+	--pluto-warning-text: #664d03;
+	--pluto-info-bg: #cff4fc;
+	--pluto-info-border: #b6effb;
+	--pluto-info-text: #055160;
+
+	--pluto-grid: 1rem;
+	--pluto-spacing: 1rem;
+	--pluto-v-spacing: 100%;
+	--pluto-direction: row;
+	--pluto-align: center;
+	--pluto-v-align: stretch;
+	--pluto-v-direction: column;
+	--pluto-padding: 1rem;
+	--pluto-margin: 1rem;
+	--pluto-padding-top: 1rem;
+	--pluto-padding-bottom: 1rem;
+	--pluto-padding-left: 1rem;
+	--pluto-padding-right: 1rem;
+	--pluto-margin-top: 1rem;
+	--pluto-margin-bottom: 1rem;
+	--pluto-margin-left: 1rem;
+	--pluto-margin-right: 1rem;
+
+	--pluto-form-border-color: #ced4da;
+	--pluto-form-bg-color: #fff;
+	--pluto-form-border-radius: 0.25rem;
+	--pluto-form-padding: 0.5rem 0.75rem;
+	--pluto-form-font-size: 1rem;
+	--pluto-form-line-height: 1.5;
+	--pluto-form-color: #495057;
+
+	--pluto-form-focus-color: #495057;
+	--pluto-form-focus-bg-color: #fff;
+	--pluto-form-focus-border-color: #80bdff;
+	--pluto-form-focus-outline: 0;
+	--pluto-form-focus-box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+
+	--pluto-form-invalid-color: #dc3545;
+	--pluto-form-invalid-bg-color: #ffecec;
+	--pluto-form-invalid-border-color: #dc3545;
+	--pluto-form-invalid-outline: 0;
+}
+
+body {
+	font-family: var(--pluto-font-family);
+	background-color: var(--pluto-bg-color, #f4f7f6);
+	color: var(--pluto-text-color, #333);
+	margin: 0;
+	padding: 0;
+}
+
+:hosted .container {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: var(--pluto-padding, 1rem);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+::part(heading) {
+	color: var(--pluto-text-color-dark, #111);
+	margin: var(--pluto-margin);
+}
+
+.pluto-close {
+	background: none;
+	border: none;
+	font-size: 1.5rem;
+	cursor: pointer;
+	color: var(--pluto-secondary-color, #6c757d);
+	line-height: 1;
+	padding: 0;
+}
+
+.pluto-close:hover {
+	color: var(--pluto-text-color-dark, #111);
+}
+
+code {
+	margin: 0 4px;
+}
+
+pluto-toast {
+	background-color: var(--pluto-text-color-dark, #333);
+	color: var(--pluto-text-color-light, #fff);
+	padding: var(--pluto-padding, 1rem) 1.5rem;
+	border-radius: var(--pluto-border-radius, 8px);
+	box-shadow: var(--pluto-box-shadow);
+	display: flex;
+	align-items: var(--pluto-align, center);
+	gap: var(--pluto-spacing, 1rem);
+	opacity: 0;
+	transform: translateY(var(--pluto-spacing, 1rem));
+	transition: opacity 0.3s ease, transform 0.3s ease;
+	position: fixed;
+	bottom: 1rem;
+	right: 1rem;
+	z-index: 1050;
+	display: flex;
+	flex-direction: column;
+	cursor: pointer;
+}
+
+pluto-toast[active] {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+pluto-toast[type="success"] {
+	background-color: var(--pluto-success-color, #28a745);
+}
+
+pluto-toast[type="danger"] {
+	background-color: var(--pluto-danger-color, #dc3545);
+}
+
+pluto-toast[right] {
+	right: var(--pluto-spacing, 1rem);
+	left: unset;
+}
+
+pluto-toast[bottom] {
+	bottom: var(--pluto-spacing, 1rem);
+	top: unset;
+}
+
+pluto-toast[top] {
+	top: var(--pluto-spacing, 1rem);
+	bottom: unset;
+}
+
+pluto-toast[left] {
+	left: var(--pluto-spacing, 1rem);
+	right: unset;
+}
+
+pluto-tab {
+	display: none;
+	padding: var(--pluto-padding, 1rem);
+}
+
+pluto-tab[active] {
+	display: block;
+}
+
+pluto-modal{
+	display: none;
+}
