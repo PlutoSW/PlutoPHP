@@ -5,16 +5,17 @@ namespace Pluto;
 use Pluto\Orm\MySQL\Database;
 use Pluto\Orm\MySQL\QueryBuilder;
 use Pluto\Orm\MySQL\Relation;
+use JsonSerializable;
 
 
-class Model
+class Model implements JsonSerializable
 {
-    protected static string $table = '';
+    public static string $table = '';
     protected static string $primaryKey = 'id';
     protected array $attributes = [];
     protected array $original = [];
-    protected array $fillable = [];
     protected bool $timestamps = true;
+    protected array $format = [];
 
     public function __construct(array $attributes = [])
     {
@@ -90,6 +91,7 @@ class Model
         if (method_exists($this, $k)) {
             $rel = $this->$k();
             if ($rel instanceof Relation) return $rel->getRelated($this);
+            else return $rel;
         }
         return null;
     }
@@ -101,6 +103,76 @@ class Model
 
     public function toArray(): array
     {
-        return $this->attributes;
+        $attributes = $this->attributes;
+        foreach ($this->format as $key => $formatter) {
+            if (isset($attributes[$key]) && !is_null($attributes[$key])) {
+                $attributes[$key] = $this->castAttribute($attributes[$key], $formatter);
+            }
+        }
+        return $attributes;
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->toArray();
+    }
+
+    protected function castAttribute($value, $formatter)
+    {
+        if (is_string($formatter)) {
+            $type = $formatter;
+            $options = null;
+        } elseif (is_array($formatter)) {
+            $type = array_key_first($formatter);
+            $options = $formatter[$type];
+        } else {
+            return $value;
+        }
+
+        return match ($type) {
+            'int', 'integer' => (int) $value,
+            'float', 'double' => (float) $value,
+            'string' => (string) $value,
+            'bool', 'boolean' => (bool) $value,
+            'date' => date($options ?? 'Y-m-d', strtotime($value)),
+            'datetime' => date($options ?? 'Y-m-d H:i:s', strtotime($value)),
+            'json' => json_decode($value, true) ?? [],
+            'decimal' => number_format((float)$value, $options['decimals'] ?? 2, $options['dec_point'] ?? '.', $options['thousands_sep'] ?? ''),
+            'price' => number_format((float)$value, 2, ',', '.') . ' ' . ($options['currency'] ?? '₺'),
+            default => $value,
+        };
+    }
+
+    public function hasOne($related, $foreignKey = null, $localKey = 'id')
+    {
+        $foreignKey = $foreignKey ?: $this->getForeignKey();
+        return new \Pluto\Orm\MySQL\Relations\HasOne($this, $related, $foreignKey, $localKey);
+    }
+
+    public function hasMany($related, $foreignKey = null, $localKey = 'id')
+    {
+        $foreignKey = $foreignKey ?: $this->getForeignKey();
+        return new \Pluto\Orm\MySQL\Relations\HasMany($this, $related, $foreignKey, $localKey);
+    }
+
+    public function belongsTo($related, $foreignKey = null, $localKey = 'id')
+    {
+        $foreignKey = $foreignKey ?: $this->getForeignKeyFromClass($related);
+        return new \Pluto\Orm\MySQL\Relations\BelongsTo($this, $related, $foreignKey, $localKey);
+    }
+
+    public function belongsToMany($related, $pivotTable, $pivotLocalKey, $pivotForeignKey)
+    {
+        return new \Pluto\Orm\MySQL\Relations\BelongsToMany($this, $related, $pivotTable, $pivotLocalKey, $pivotForeignKey);
+    }
+
+    protected function getForeignKey()
+    {
+        return strtolower((new \ReflectionClass($this))->getShortName()) . '_id';
+    }
+
+    protected function getForeignKeyFromClass($class)
+    {
+        return strtolower((new \ReflectionClass($class))->getShortName()) . '_id';
     }
 }

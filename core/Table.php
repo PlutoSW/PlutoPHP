@@ -82,10 +82,15 @@ class Table
             $this->query->limit($rowsLength)->offset(($currentPage - 1) * $rowsLength);
         }
 
-        $data = $this->query->toArray();
+        $data = $this->query->get();
         if (isset($this->_beforeExecute)) {
             ($this->_beforeExecute)($data);
         }
+        if ($this->query->getModel()) {
+            $data = array_map(fn($item) => $item instanceof \Pluto\Model ? $item->toArray() : $item, $data);
+        }
+
+
         $response = [
             'data' => $data,
             'pagination' => [
