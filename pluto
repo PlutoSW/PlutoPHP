@@ -169,18 +169,7 @@ class {$className} extends Model
      *
      * @var string
      */
-    protected static string \$table = '{$tableName}';
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
-    protected array \$fillable = [
-        'name',
-        'email',
-        'password', // Assuming there is a password field
-    ];
+    public static string \$table = '{$tableName}';
 
     /**
      * The attributes that should be hidden for arrays.
