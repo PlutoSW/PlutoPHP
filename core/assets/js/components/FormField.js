@@ -711,7 +711,6 @@ class PlutoAdvancedSelect extends PlutoElement {
 	render() {
 		return html`
 			<div class="form-group">
-				<label for=${this.name}>${this.label}</label>
 				<div class="adv-select">
 					<button
 						class="adv-select-display"

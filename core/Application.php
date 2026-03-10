@@ -128,7 +128,7 @@ class Application
         error_log($errorMessage, 3, $logFile);
     }
 
-    private function handleException(\Throwable $e): Response
+    private function handleException(\Throwable $e): Response|String
     {
         $this->response->setStatusCode(500);
 
@@ -138,6 +138,10 @@ class Application
         $this->logException($e, $errorRandomID);
 
         if ($isDebug) {
+            if ($this->request->getHeader('Content-Type') === "application/json") {
+                return $this->response->json(['success' => false, 'error' => $e->getMessage()]);
+            }
+
             $log = ['file' => BASE_PATH . '/storage/logs/app.log'];
             ob_start();
             require_once BASE_PATH . '/core/Template/errors/500-debug.php';
@@ -146,6 +150,11 @@ class Application
         } else {
             $title = __('errors.500_title');
             $message = __('errors.500_message');
+
+            if ($this->request->getHeader('Content-Type') === "application/json") {
+                return $this->response->json(['success' => false, 'error' => $message]);
+            }
+
             $this->response->view('errors.500', ['title' => $title, 'message' => $message]);
         }
 

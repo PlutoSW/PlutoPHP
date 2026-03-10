@@ -25,7 +25,7 @@ class Minifier
         $html = preg_replace_callback('/<style[^>]*>(.*?)<\/style>/is', function ($matches) {
             $css = $matches[1];
             $css = preg_replace('/\/\*(.|\s)*?\*\//', '', $css);
-            $css = preg_replace('/\s*([{}|:;,])\s*/', '$1', $css);
+            $css = preg_replace('/\s*([{}|;,])\s*/', '$1', $css);
             $css = preg_replace('/\s\s+/', ' ', $css);
             return '<style>' . trim($css) . '</style>';
         }, $html);

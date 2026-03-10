@@ -39,7 +39,7 @@ class PlutoUI
         }, $content);
 
         if (\getenv('MINIFY') === 'true') {
-            $content = preg_replace(['/\/\*(.|\s)*?\*\//', '/\s*([{}|:;,])\s*/', '/\s\s+/', '/`/'], ['', '$1', ' ', '\\`'], $content);
+            $content = preg_replace(['/\/\*(.|\s)*?\*\//', '/\s*([{}|;,])\s*/', '/\s\s+/', '/`/'], ['', '$1', ' ', '\\`'], $content);
         }
         return $this->response->css($content);
     }
@@ -88,7 +88,7 @@ class PlutoUI
         $content = file_get_contents(BASE_PATH . '/app/assets/css/' . $style);
         if (\getenv('MINIFY') === 'true') {
             $content = preg_replace('/\/\*(.|\s)*?\*\//', '', $content);
-            $content = preg_replace('/\s*([{}|:;,])\s*/', '$1', $content);
+            $content = preg_replace('/\s*([{}|;,])\s*/', '$1', $content);
             $content = preg_replace('/\s\s+/', ' ', $content);
         }
         return $this->response->css($content);
