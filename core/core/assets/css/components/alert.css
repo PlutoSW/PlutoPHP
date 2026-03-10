@@ -1,0 +1,61 @@
+/* core/assets/css/components/alert.css */
+
+.alert {
+	position: relative;
+	padding: 1rem;
+	margin-bottom: 1rem;
+	border: 1px solid transparent;
+	border-radius: var(--pluto-border-radius, 8px);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.alert-dismissible {
+	padding-right: 3rem;
+}
+
+.alert-success {
+	color: var(--pluto-success-text);
+	background-color: var(--pluto-success-bg);
+	border-color: var(--pluto-success-border);
+}
+
+.alert-danger {
+	color: var(--pluto-danger-text);
+	background-color: var(--pluto-danger-bg);
+	border-color: var(--pluto-danger-border);
+}
+
+.alert-warning {
+	color: var(--pluto-warning-text);
+	background-color: var(--pluto-warning-bg);
+	border-color: var(--pluto-warning-border);
+}
+
+.alert-info {
+	color: var(--pluto-info-text);
+	background-color: var(--pluto-info-bg);
+	border-color: var(--pluto-info-border);
+}
+
+.alert .close {
+	position: absolute;
+	top: 50%;
+	right: 1rem;
+	transform: translateY(-50%);
+	padding: 0;
+	background: none;
+	border: none;
+	font-size: 1.5rem;
+	font-weight: 700;
+	line-height: 1;
+	color: inherit;
+	opacity: 0.5;
+	cursor: pointer;
+}
+
+.alert .close:hover {
+	opacity: 1;
+}

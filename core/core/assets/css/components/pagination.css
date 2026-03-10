@@ -1,0 +1,49 @@
+pluto-component {
+	display: flex;
+	font-family: var(--pluto-font-family);
+	align-items: center;
+	gap: 5px;
+	user-select: none;
+	margin-left: auto;
+}
+
+.page-btn {
+	background: var(--pluto-bg-light);
+	border: 1px solid var(--pluto-border-color);
+	color: var(--pluto-text-color);
+	min-width: 32px;
+	height: 32px;
+	border-radius: var(--pluto-border-radius);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.2s;
+	font-size: 0.85rem;
+}
+.page-btn:hover:not(:disabled):not(.active) {
+	background: var(--pluto-bg-dark);
+	border-color: var(--pluto-border-color);
+	color: var(--pluto-text-color-dark);
+}
+.page-btn.active {
+	background: var(--pluto-primary-color);
+	border-color: var(--pluto-primary-color);
+	color: var(--pluto-text-color-light);
+	font-weight: bold;
+}
+.page-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+.dots {
+	color: var(--pluto-secondary-color);
+	padding: 0 4px;
+	font-size: 0.8rem;
+}
+.info {
+	margin-right: auto;
+	padding-right: 20px;
+	color: var(--pluto-secondary-color);
+	font-size: 0.8rem;
+}

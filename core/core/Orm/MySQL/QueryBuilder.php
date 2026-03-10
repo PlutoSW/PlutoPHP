@@ -20,7 +20,6 @@ class QueryBuilder
     protected array $with = [];
     protected array $rows = [];
     protected ?string $modelClass = null;
-    protected int $bindingOffset = 0;
 
     public function __construct(string $table)
     {
@@ -69,17 +68,6 @@ class QueryBuilder
         return $this;
     }
 
-    public function setBindingOffset(int $offset): self
-    {
-        $this->bindingOffset = $offset;
-        return $this;
-    }
-
-    protected function nextPlaceholder(): string
-    {
-        return ':p' . (count($this->bindings) + $this->bindingOffset);
-    }
-
     protected function addWhere(string $boolean, $column, $operator = null, $value = null): self
     {
         if (is_array($column)) {
@@ -91,7 +79,6 @@ class QueryBuilder
 
         if ($column instanceof Closure) {
             $nested = new self($this->table);
-            $nested->setBindingOffset(count($this->bindings));
             $column($nested);
             $this->wheres[] = ['type' => 'nested', 'boolean' => $boolean, 'query' => $nested];
             $this->bindings = array_merge($this->bindings, $nested->bindings);
@@ -105,7 +92,7 @@ class QueryBuilder
 
         if ($operator === null) $operator = '=';
 
-        $placeholder = $this->nextPlaceholder();
+        $placeholder = ':p' . count($this->bindings);
         $this->wheres[] = ['type' => 'basic', 'boolean' => $boolean, 'column' => $column, 'operator' => $operator, 'placeholder' => $placeholder];
         $this->bindings[$placeholder] = $value;
         return $this;
@@ -133,7 +120,6 @@ class QueryBuilder
     protected function addNestedWhere(string $boolean, \Closure $callback): self
     {
         $nested = new self($this->table);
-        $nested->setBindingOffset(count($this->bindings));
         $nested->model($this->modelClass);
 
         $callback($nested);
@@ -153,7 +139,7 @@ class QueryBuilder
     {
         $placeholders = [];
         foreach ($values as $v) {
-            $ph = $this->nextPlaceholder();
+            $ph = ':p' . count($this->bindings);
             $this->bindings[$ph] = $v;
             $placeholders[] = $ph;
         }
@@ -223,7 +209,7 @@ class QueryBuilder
 
     public function having(string $column, string $operator, $value): self
     {
-        $ph = $this->nextPlaceholder();
+        $ph = ':p' . count($this->bindings);
         $this->bindings[$ph] = $value;
         $this->havings[] = compact('column', 'operator', 'ph');
         return $this;
@@ -353,18 +339,6 @@ class QueryBuilder
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         $this->selects = $prev;
         return (int)($row['aggregate'] ?? 0);
-    }
-
-    public function sum(string $column): float
-    {
-        $prev = $this->selects;
-        $this->selects = ["SUM({$column}) as aggregate"];
-        $sql = $this->compileSelect();
-        $stmt = Database::pdo()->prepare($sql);
-        $stmt->execute($this->bindings);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        $this->selects = $prev;
-        return (float)($row['aggregate'] ?? 0);
     }
 
     public function insert(array $data): bool

@@ -33,15 +33,10 @@ class Template
         'rawurlencode',
         'global',
         'array_map',
-        'array_filter',
         'toPrice',
         'print_r',
         'var_dump',
-        'implode',
-        '__',
-        'default',
-        'dateFormat',
-        'dateTimeFormat'
+        'default'
     ];
 
     public function __construct()
@@ -153,7 +148,6 @@ class Template
 
     protected function compile(string $content): string
     {
-        $content = preg_replace('/@env\s*\(\s*\'(.*?)\'\s*\)/', '<?php echo getenv(\'$1\'); ?>', $content);
         $content = preg_replace('/@style\s*\(\s*\'(.*?)\'\s*\)/', '<?php echo \'/style/$1\'; ?>', $content);
         $content = preg_replace('/@script\s*\(\s*\'(.*?)\'\s*\)/', '<?php echo \'/script/$1\'; ?>', $content);
         $content = preg_replace('/@corestyle\s*\(\s*\'(.*?)\'\s*\)/', '<?php echo \'/core/style/$1\'; ?>', $content);
@@ -207,29 +201,22 @@ class Template
 
             $output = $this->compileExpression($variableExpression);
             foreach ($parts as $filter) {
-                $filterParts = $this->splitFilter(trim($filter));
+                $filterParts = explode(':', trim($filter));
                 $filterName = trim($filterParts[0]);
                 $filterArgs = isset($filterParts[1]) ? ', ' . $filterParts[1] : '';
 
                 if (!in_array($filterName, $this->allowed_filters)) {
                     continue;
                 }
-                if ($filterName === 'array_map' || $filterName === 'str_replace' || $filterName === 'implode') {
+                if ($filterName === 'array_map' || $filterName === 'str_replace') {
                     $output = sprintf('%s(%s, %s)', $filterName, trim(ltrim($filterArgs, ', ')), $output);
-                } elseif ($filterName === 'default') {
-                    $output = "({$output}!==null && {$output}!=='') ? {$output} : {$filterParts[1]}";
-                } elseif ($filterName === 'html') {
-                    $output = $output;
-                }  elseif ($filterName === 'toPrice') {
+                } else if ($filterName === 'default') {
+                    $defaultValue = trim(ltrim($filterArgs, ', '));
+                    $output = "({$output}!==null) ? {$output} : {$defaultValue}";
+                } elseif ($filterName === 'toPrice') {
                     $output = \sprintf('$GLOBALS["template"]::toPrice(%s, "%s", "%s")', $output, $filterParts[1], $filterParts[2]);
-                } elseif ($filterName === 'dateFormat') {
-                    $output = \sprintf('self::dateFormat(%s, %s)', $output, $filterParts[1]);
-                } elseif ($filterName === 'dateTimeFormat') {
-                    $output = \sprintf('self::dateTimeFormat(%s, %s)', $output, $filterParts[1]);
                 } elseif ($filterName === 'json_encode') {
                     $output = sprintf('json_encode(%s, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)', $output);
-                } elseif ($filterName === 'global') {
-                    $output = sprintf('$GLOBALS["%s"]', $output);
                 } else {
                     $output = sprintf('%s(%s%s)', $filterName, $output, $filterArgs);
                 }
@@ -265,38 +252,6 @@ class Template
         }, $content);
 
         return $content;
-    }
-
-    protected function splitFilter(string $filter): array
-    {
-        $parts = [];
-        $current = '';
-        $inSingle = false;
-        $inDouble = false;
-        $len = strlen($filter);
-
-        for ($i = 0; $i < $len; $i++) {
-            $char = $filter[$i];
-            if ($char === '\\') {
-                $current .= $char;
-                if ($i + 1 < $len) {
-                    $current .= $filter[++$i];
-                }
-                continue;
-            }
-            if ($char === "'" && !$inDouble) {
-                $inSingle = !$inSingle;
-            } elseif ($char === '"' && !$inSingle) {
-                $inDouble = !$inDouble;
-            } elseif ($char === ':' && !$inSingle && !$inDouble) {
-                $parts[] = $current;
-                $current = '';
-                continue;
-            }
-            $current .= $char;
-        }
-        $parts[] = $current;
-        return array_map('trim', $parts);
     }
 
     protected function compileSetDirective(string $expression): string
@@ -397,20 +352,9 @@ class Template
         return array_merge($tempDependencies, array_map(fn($v) => $this->viewsPath . str_replace('.', '/', $v) . '.phtml', $matches[1]));
     }
 
-    public static function toPrice($value, $currency = '₺', $decimal = 0, $decimal_separator = ',', $thousands_seperator = '.')
+    public static function toPrice($price, $locale, $currency)
     {
-        return number_format((float)$value, ($decimal ?? 0), $decimal_separator, $thousands_seperator) . ' ' . ($currency ?? '₺');
-    }
-
-    public static function dateFormat($date, $format = 'd.m.Y')
-    {
-        $date = (!\is_numeric($date)) ? \strtotime($date) : $date;
-        return \date($format, (int)$date);
-    }
-
-    public static function dateTimeFormat($date, $format = 'd.m.Y H:i:s')
-    {
-        $date = (!\is_numeric($date)) ? \strtotime($date) : $date;
-        return \date($format, $date);
+        $formatter = new \NumberFormatter($locale,  \NumberFormatter::CURRENCY);
+        return $formatter->formatCurrency($price, $currency);
     }
 }

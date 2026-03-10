@@ -6,7 +6,7 @@ use Pluto\Orm\MySQL\Database;
 use Pluto\Orm\MySQL\QueryBuilder;
 use Pluto\Orm\MySQL\Relation;
 use JsonSerializable;
-use Pluto\Template\Template;
+
 
 class Model implements JsonSerializable
 {
@@ -21,6 +21,7 @@ class Model implements JsonSerializable
     {
         $this->attributes = $attributes;
         $this->original = $attributes;
+
     }
 
     public static function query(): QueryBuilder
@@ -86,29 +87,11 @@ class Model implements JsonSerializable
 
     public function __get($k)
     {
-        if (str_starts_with($k, '_orig_')) {
-            $originalKey = substr($k, 6);
-            if (array_key_exists($originalKey, $this->attributes)) {
-                return $this->attributes[$originalKey];
-            }
-            if (method_exists($this, $originalKey)) {
-                $rel = $this->$originalKey();
-                if (!$rel instanceof Relation) {
-                    return $rel;
-                }
-            }
-        }
-
-        if (array_key_exists($k, $this->attributes)) {
-            if (isset($this->format[$k]) && !is_null($this->attributes[$k])) {
-                return $this->castAttribute($this->attributes[$k], $this->format[$k]);
-            }
-            return $this->attributes[$k];
-        }
+        if (array_key_exists($k, $this->attributes)) return $this->attributes[$k];
         if (method_exists($this, $k)) {
             $rel = $this->$k();
             if ($rel instanceof Relation) return $rel->getRelated($this);
-            else return $this->castAttribute($rel, $this->format[$k]);
+            else return $rel;
         }
         return null;
     }
@@ -133,16 +116,7 @@ class Model implements JsonSerializable
     {
         return $this->toArray();
     }
-    private function hasRightTimestamp($timestamp)
-    {
-        $d = \DateTime::createFromFormat('Y-m-d H:i:s', $timestamp);
-        return $d && $d->format('Y-m-d H:i:s') === $timestamp;
-    }
-    private function hasRightDate($timestamp)
-    {
-        $d = \DateTime::createFromFormat('Y-m-d', $timestamp);
-        return $d && $d->format('Y-m-d') === $timestamp;
-    }
+
     protected function castAttribute($value, $formatter)
     {
         if (is_string($formatter)) {
@@ -160,18 +134,13 @@ class Model implements JsonSerializable
             'float', 'double' => (float) $value,
             'string' => (string) $value,
             'bool', 'boolean' => (bool) $value,
-            'date' => $this->hasRightDate($value) ? date($options ?? 'Y-m-d', strtotime($value)) : '',
-            'datetime' => $this->hasRightTimestamp($value) ? date($options ?? 'Y-m-d H:i:s', strtotime($value)) : '',
-            'json' => json_decode($value) ?? [],
+            'date' => date($options ?? 'Y-m-d', strtotime($value)),
+            'datetime' => date($options ?? 'Y-m-d H:i:s', strtotime($value)),
+            'json' => json_decode($value, true) ?? [],
             'decimal' => number_format((float)$value, $options['decimals'] ?? 2, $options['dec_point'] ?? '.', $options['thousands_sep'] ?? ''),
-            'price' => self::priceFormat($value, $options),
+            'price' => number_format((float)$value, 2, ',', '.') . ' ' . ($options['currency'] ?? '₺'),
             default => $value,
         };
-    }
-
-    public static function priceFormat($value, $options = [])
-    {
-        return Template::toPrice((float)$value,$options['currency'], ($options['decimals'] ?? 0), ($options['decimal_sep'] ?? ','), ($options['thousands_sep'] ?? '.'));
     }
 
     public function hasOne($related, $foreignKey = null, $localKey = 'id')
