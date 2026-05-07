@@ -1,0 +1,242 @@
+<?php
+
+namespace Pluto;
+
+use Pluto\Orm\MySQL\Database;
+use Pluto\Orm\MySQL\QueryBuilder;
+use Pluto\Orm\MySQL\Relation;
+use JsonSerializable;
+use Pluto\Template\Template;
+use stdClass;
+
+class Model implements JsonSerializable
+{
+    public static string $table = '';
+    protected static string $primaryKey = 'id';
+    protected array $attributes = [];
+    protected array $original = [];
+    protected bool $timestamps = true;
+    protected array $format = [];
+    protected array $hidden = [];
+
+    public function __construct(array $attributes = [])
+    {
+        $this->attributes = $attributes;
+        $this->original = $attributes;
+    }
+
+    public static function query(): QueryBuilder
+    {
+        $table = static::$table ?: strtolower((new \ReflectionClass(static::class))->getShortName()) . 's';
+        $q = QueryBuilder::table($table)->model(static::class);
+        return $q;
+    }
+
+    public static function all(): array
+    {
+        return static::query()->get();
+    }
+
+    public static function find($id): ?self
+    {
+        $pk = static::$primaryKey;
+        return static::query()->where($pk, '=', $id)->first();
+    }
+
+    public static function where($column, $op = null, $value = null): QueryBuilder
+    {
+        return static::query()->where($column, $op, $value);
+    }
+
+    protected static function beforeCreate($data): void {}
+    protected static function beforeUpdate($data, $oldData = null): void {}
+    protected static function beforeDelete($data): void {}
+    protected static function afterCreate($data): void {}
+    protected static function afterUpdate($data, $oldData = null): void {}
+    protected static function afterDelete($data): void {}
+
+
+    public static function create(array $data): self
+    {
+        if (method_exists(static::class, 'beforeCreate')) static::beforeCreate($data);
+        $m = new static($data);
+        static::query()->insert($data);
+        $m->attributes[static::$primaryKey] = Database::pdo()->lastInsertId();
+        $m->original = $m->attributes;
+        if (method_exists(static::class, 'afterCreate')) static::afterCreate($m);
+        return $m;
+    }
+
+    public function save(): bool
+    {
+        $pk = static::$primaryKey;
+
+        if (isset($this->attributes[$pk])) {
+            $dirty = array_diff_assoc($this->attributes, $this->original);
+            if (!$dirty) return true;
+            if (\method_exists(static::class, 'beforeUpdate')) static::beforeUpdate($this, $this->original, $dirty);
+
+            static::query()
+                ->where($pk, '=', $this->attributes[$pk])
+                ->update($dirty);
+
+            if (\method_exists(static::class, 'afterUpdate')) static::afterUpdate($this, $this->original, $dirty);
+            $this->original = $this->attributes;
+            return true;
+        }
+
+        if (\method_exists(static::class, 'beforeCreate')) static::beforeCreate($this);
+        $id = static::query()->insertGetId($this->attributes);
+        $this->attributes[$pk] = $id;
+        $this->original = $this->attributes;
+        if (\method_exists(static::class, 'afterCreate')) static::afterCreate($this);
+        return true;
+    }
+
+    public function delete(): bool
+    {
+        $pk = static::$primaryKey;
+        if (!isset($this->attributes[$pk])) return false;
+        if (\method_exists(static::class, 'beforeDelete')) static::beforeDelete($this);
+        $count = static::query()->where($pk, '=', $this->attributes[$pk])->delete();
+        if (\method_exists(static::class, 'afterDelete')) static::afterDelete($this);
+
+        return $count > 0;
+    }
+
+    public function __get($k)
+    {
+
+        if (str_starts_with($k, '_orig_')) {
+            $originalKey = substr($k, 6);
+            if (array_key_exists($originalKey, $this->attributes)) {
+                return $this->attributes[$originalKey];
+            }
+            if (method_exists($this, $originalKey)) {
+                $rel = $this->$originalKey();
+                if (!$rel instanceof Relation) {
+                    return $rel;
+                }
+            }
+        }
+
+        if (array_key_exists($k, $this->attributes)) {
+            if (isset($this->format[$k]) && !is_null($this->attributes[$k])) {
+                return $this->castAttribute($this->attributes[$k], $this->format[$k]);
+            }
+            return $this->attributes[$k];
+        }
+
+        if (method_exists($this, $k)) {
+            $rel = $this->$k();
+            if ($rel instanceof Relation) return $rel->getRelated($this);
+            else if (isset($this->format[$k])) return $this->castAttribute($rel, $this->format[$k]);
+            else return $rel;
+        }
+        return null;
+    }
+
+    public function __set($key, $value)
+    {
+        $this->attributes[$key] = $value;
+    }
+
+    public function toArray(): array
+    {
+        $attributes = $this->attributes;
+        foreach ($this->format as $key => $formatter) {
+            if (isset($attributes[$key]) && !is_null($attributes[$key])) {
+                $attributes[$key] = $this->castAttribute($attributes[$key], $formatter);
+            }
+        }
+        foreach ($this->hidden as $key) {
+            unset($attributes[$key]);
+        }
+
+        return $attributes;
+    }
+
+    public function toJson(): string
+    {
+        return json_encode($this->toArray());
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->toArray();
+    }
+    private function hasRightTimestamp($timestamp)
+    {
+        $d = \DateTime::createFromFormat('Y-m-d H:i:s', $timestamp);
+        return $d && $d->format('Y-m-d H:i:s') === $timestamp;
+    }
+    private function hasRightDate($timestamp)
+    {
+        $d = \DateTime::createFromFormat('Y-m-d', $timestamp);
+        return $d && $d->format('Y-m-d') === $timestamp;
+    }
+    protected function castAttribute($value, $formatter)
+    {
+        if (is_string($formatter)) {
+            $type = $formatter;
+            $options = null;
+        } elseif (is_array($formatter)) {
+            $type = array_key_first($formatter);
+            $options = $formatter[$type];
+        } else {
+            return $value;
+        }
+
+        return match ($type) {
+            'int', 'integer' => (int) $value,
+            'float', 'double' => (float) $value,
+            'string' => (string) $value,
+            'bool', 'boolean' => (bool) $value,
+            'date' => $this->hasRightDate($value) ? date($options ?? 'Y-m-d', strtotime($value)) : '',
+            'datetime' => $this->hasRightTimestamp($value) ? date($options ?? 'Y-m-d H:i:s', strtotime($value)) : '',
+            'time' => $this->hasRightTimestamp($value) ? date($options ?? 'H:i:s', strtotime($value)) : '',
+            'json' => json_decode($value) ?? [],
+            'decimal' => number_format((float)$value, $options['decimals'] ?? 2, $options['dec_point'] ?? '.', $options['thousands_sep'] ?? ''),
+            'price' => self::priceFormat($value, $options),
+            default => $value,
+        };
+    }
+
+    public static function priceFormat($value, $options = [])
+    {
+        return Template::toPrice((float)$value, ($options['currency'] ?? '₺'), ($options['decimals'] ?? 0), ($options['decimal_sep'] ?? ','), ($options['thousands_sep'] ?? '.'));
+    }
+
+    public function hasOne($related, $foreignKey = null, $localKey = 'id')
+    {
+        $foreignKey = $foreignKey ?: $this->getForeignKey();
+        return new \Pluto\Orm\MySQL\Relations\HasOne($this, $related, $foreignKey, $localKey);
+    }
+
+    public function hasMany($related, $foreignKey = null, $localKey = 'id')
+    {
+        $foreignKey = $foreignKey ?: $this->getForeignKey();
+        return new \Pluto\Orm\MySQL\Relations\HasMany($this, $related, $foreignKey, $localKey);
+    }
+
+    public function belongsTo($related, $foreignKey = null, $localKey = 'id')
+    {
+        $foreignKey = $foreignKey ?: $this->getForeignKeyFromClass($related);
+        return new \Pluto\Orm\MySQL\Relations\BelongsTo($this, $related, $foreignKey, $localKey);
+    }
+
+    public function belongsToMany($related, $pivotTable, $pivotLocalKey, $pivotForeignKey)
+    {
+        return new \Pluto\Orm\MySQL\Relations\BelongsToMany($this, $related, $pivotTable, $pivotLocalKey, $pivotForeignKey);
+    }
+
+    protected function getForeignKey()
+    {
+        return strtolower((new \ReflectionClass($this))->getShortName()) . '_id';
+    }
+
+    protected function getForeignKeyFromClass($class)
+    {
+        return strtolower((new \ReflectionClass($class))->getShortName()) . '_id';
+    }
+}

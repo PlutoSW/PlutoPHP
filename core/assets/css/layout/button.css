@@ -1,0 +1,150 @@
+button,
+.button,
+:host(pluto-button),
+:host(pluto-submit),
+::part(button) {
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--pluto-border-color);
+	border-radius: var(--pluto-border-radius);
+	background-color: var(--pluto-bg-light);
+	color: var(--pluto-text-color);
+	cursor: pointer;
+	transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+	font-size: 0.9rem;
+	text-align: center;
+	vertical-align: middle;
+	user-select: none;
+	text-decoration: none;
+	box-sizing: border-box;
+}
+
+button:hover,
+.button:hover,
+:host(pluto-button:hover),
+:host(pluto-submit:hover),
+::part(button):hover {
+	background-color: var(--pluto-bg-dark);
+}
+
+button:disabled,
+.button:disabled,
+:host(pluto-button:disabled),
+:host(pluto-submit:disabled),
+::part(button):disabled {
+	background-color: var(--pluto-bg-dark);
+	cursor: not-allowed;
+	color: var(--pluto-text-color-dark);
+	opacity: 0.65;
+}
+
+button.icon,
+.button.icon,
+:host(pluto-button.icon),
+:host(pluto-submit.icon),
+::part(button icon) {
+	background: unset !important;
+	color: var(--pluto-text-color-dark);
+	border: unset !important;
+}
+
+button.primary,
+.button.primary,
+:host(pluto-button.primary),
+:host(pluto-submit.primary),
+::part(button primary) {
+	background-color: var(--pluto-primary-color-dark);
+	border-color: var(--pluto-primary-color-dark);
+	color: var(--pluto-text-color-light);
+}
+
+button.primary:hover,
+.button.primary:hover,
+:host(pluto-button.primary:hover),
+:host(pluto-submit.primary:hover),
+::part(button primary):hover {
+	background-color: var(--pluto-primary-color-dark);
+	border-color: var(--pluto-primary-color-dark);
+}
+
+button.secondary,
+.button.secondary,
+:host(pluto-button.secondary),
+:host(pluto-submit.secondary),
+::part(button secondary) {
+	background-color: var(--pluto-secondary-color);
+	border-color: var(--pluto-secondary-color);
+	color: var(--pluto-text-color-light);
+}
+
+button.secondary:hover,
+.button.secondary:hover,
+:host(pluto-button.secondary:hover),
+:host(pluto-submit.secondary:hover),
+::part(button secondary):hover {
+	background-color: var(--pluto-secondary-color-dark);
+	border-color: var(--pluto-secondary-color-dark);
+}
+
+button.success,
+.button.success,
+:host(pluto-button.success),
+:host(pluto-submit.success),
+::part(button success) {
+	background-color: var(--pluto-success-color);
+	border-color: var(--pluto-success-color);
+	color: var(--pluto-text-color-light);
+}
+
+button.success:hover,
+.button.success:hover,
+:host(pluto-button.success:hover),
+:host(pluto-submit.success:hover),
+::part(button success):hover {
+	background-color: var(--pluto-success-color-dark);
+	border-color: var(--pluto-success-color-dark);
+}
+
+button.danger,
+.button.danger,
+:host(pluto-button.danger),
+:host(pluto-submit.danger),
+::part(button danger) {
+	background-color: var(--pluto-danger-color);
+	border-color: var(--pluto-danger-color);
+	color: var(--pluto-text-color-light);
+}
+
+button.danger:hover,
+.button.danger:hover,
+:host(pluto-button.danger:hover),
+:host(pluto-submit.danger:hover),
+::part(button danger):hover {
+	background-color: var(--pluto-danger-color-dark);
+	border-color: var(--pluto-danger-color-dark);
+}
+
+button.sm,
+.button.sm,
+:host(pluto-button.sm),
+:host(pluto-submit.sm),
+::part(button sm) {
+	padding: 0.15rem 0.25rem;
+}
+
+button.lg,
+.button.lg,
+:host(pluto-button.lg),
+:host(pluto-submit.lg),
+::part(button lg) {
+	padding: 0.75rem 1.25rem;
+	font-size: 1.1rem;
+}
+
+button.xl,
+.button.xl,
+:host(pluto-button.xl),
+:host(pluto-submit.xl),
+::part(button xl) {
+	padding: 1rem 1.5rem;
+	font-size: 1.25rem;
+}
