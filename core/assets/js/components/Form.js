@@ -3,6 +3,7 @@ class PlutoForm extends PlutoElement {
 		return {
 			action: { type: String },
 			method: { type: String },
+			enctype: { type: String },
 			_loading: { type: Boolean, private: true },
 		};
 	}
@@ -10,6 +11,7 @@ class PlutoForm extends PlutoElement {
 	constructor() {
 		super();
 		this.method = "POST";
+		this.files = {};
 		this._loading = false;
 	}
 
@@ -24,14 +26,13 @@ class PlutoForm extends PlutoElement {
 			let isFormValid = true;
 
 			const validationResults = await Promise.all(
-				elements.map((el) => (typeof el.validate === "function" ? el.validate() : true))
+				elements.map((el) => (typeof el.validate === "function" ? el.validate() : true)),
 			);
 
 			isFormValid = validationResults.every((isValid) => isValid);
 
 			if (!isFormValid) {
 				this._loading = false;
-				console.warn("PlutoForm: Validation failed.");
 				return;
 			}
 
@@ -42,12 +43,14 @@ class PlutoForm extends PlutoElement {
 					el.tagName.toLowerCase() === "pluto-radio"
 				) {
 					if (el.checked || el.value) this.data[el.name] = el.value || el.checked;
+				} else if (el.tagName.toLowerCase() === "pluto-file-input") {
+					if (el.files.length > 0) {
+						this.files[el.name] = el.files;
+					}
 				} else {
 					this.data[el.name] = el.value;
 				}
 			});
-
-
 			this.handleSubmit(e);
 		});
 	}
@@ -56,13 +59,44 @@ class PlutoForm extends PlutoElement {
 		e.preventDefault();
 
 		try {
-			const response = await window[this.method.toLowerCase()](this.action, this.data);
+
+			if (this.beforeSubmit) {
+				const result = await this.beforeSubmit();
+
+				if (result === false) {
+					this._loading = false;
+					return;
+				}
+			}
+			var formData;
+			if (Object.keys(this.files).length > 0) {
+				formData = new FormData();
+				Object.entries(this.data).forEach(([key, value]) => {
+					formData.append(key, value);
+				});
+				Object.keys(this.files).forEach((key) => {
+					const fileList = this.files[key];
+					if (!fileList || fileList.length === 0) return;
+					if (fileList.length === 1) {
+						formData.append(key, fileList[0]);
+						return;
+					} else {
+						Array.from(fileList).forEach((file, index) => {
+							formData.append(`${key}[${index}]`, file);
+						});
+					}
+				});
+			} else {
+				formData = this.data;
+			}
+			const response = await window[this.method.toLowerCase()](this.action, formData);
 			if (!response.status) {
 				this.dispatch(new CustomEvent("error", { detail: response }));
 			} else {
 				this.dispatch(new CustomEvent("success", { detail: response }));
 			}
 		} catch (error) {
+			console.error("PlutoForm submission error:", error);
 			this.dispatch(new CustomEvent("error", { detail: error }));
 		} finally {
 			this._loading = false;
@@ -70,18 +104,18 @@ class PlutoForm extends PlutoElement {
 	}
 
 	styles() {
-		return ['/core/style/layout/layout.css'];
+		return ["/core/style/layout/layout.css"];
 	}
 
-	reset(){
+	reset() {
 		this.form.reset();
-		this.querySelectorAll("[name]").forEach((el) =>{
+		this.querySelectorAll("[name]").forEach((el) => {
 			el.value = "";
 			el.checked = false;
 			el.classList.remove("is-valid");
 			el.classList.remove("is-invalid");
-			el.error = '';
-		})
+			el.error = "";
+		});
 	}
 
 	render() {

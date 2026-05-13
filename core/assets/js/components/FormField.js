@@ -127,6 +127,93 @@ class PlutoInput extends PlutoElement {
 	}
 }
 
+class PlutoFileInput extends PlutoElement {
+	static get props() {
+		return {
+			label: { type: String },
+			name: { type: String },
+			required: { type: Boolean },
+			error: { type: String },
+			minlength: { type: Number },
+			maxlength: { type: Number },
+			"error-required": { type: String },
+			formatter: { type: Function },
+			accept: { type: String },
+			multiple: { type: Boolean },
+		};
+	}
+
+	constructor() {
+		super();
+	}
+
+	get value() {
+		return this.wrapper?.querySelector("input")?.files || "";
+	}
+
+	onReady() {
+		this.input = this.wrapper.querySelector("input");
+		if (this.accept) {
+			this.input.accept = this.accept;
+		}
+		if (this.multiple) {
+			this.input.multiple = this.multiple;
+		}
+	}
+
+	validate() {
+		const input = this.wrapper.querySelector("input");
+
+		if (!input) return true;
+
+		const isValid = input.checkValidity();
+
+		if (isValid) {
+			this.error = "";
+			this.classList.remove("is-invalid");
+		} else {
+			if (input.validity.valueMissing) {
+				this.error = this.getAttribute("error-required") || __("validation.required");
+			} else if (input.validity.typeMismatch) {
+				this.error = __("validation.type_mismatch", { type: this.type });
+			} else {
+				this.error = input.validationMessage;
+			}
+			this.classList.add("is-invalid");
+		}
+
+		return isValid;
+	}
+
+	styles() {
+		return ["core/style/layout/layout.css"];
+	}
+
+	render() {
+		return html`
+			<div class="form-group">
+				${this.label ? html`<label for=${this.name}>${this.label}</label>` : ""}
+				<input
+					@change=${(e) => {
+						this.files = e.target.files;
+						this.dispatch(new Event("change", { bubbles: true, composed: true }));
+						this.validate();
+					}}
+					?required=${this.required}
+					type="file"
+					name=${this.name}
+					id=${this.name}
+					class="input"
+					value=${this.getAttribute("value") || ""}
+					accept=${this.accept || ""}
+					?multiple=${this.multiple}
+				/>
+				${this.error ? html`<div class="error-message">${this.error}</div>` : ""}
+			</div>
+		`;
+	}
+}
+
 class PlutoTextarea extends PlutoElement {
 	static get props() {
 		return {
@@ -284,6 +371,7 @@ class PlutoSelect extends PlutoElement {
 						if (!e.target.value) return;
 						this.value = e.target.value;
 						this.selected = e.target.selectOption;
+						this.validate();
 					}}
 					required=${this.required}
 					name=${this.name}
@@ -299,7 +387,7 @@ class PlutoSelect extends PlutoElement {
 							>
 								${option.text}
 							</option>
-						`
+						`,
 					)}
 				</select>
 				${this.error ? html`<div class="error-message">${this.error}</div>` : ""}
@@ -519,7 +607,7 @@ class PlutoRadio extends PlutoElement {
 								/>
 								${option.label}
 							</label>
-						`
+						`,
 					)}
 				</div>
 				${this.error ? html`<div class="error-message">${this.error}</div>` : ""}
@@ -736,13 +824,13 @@ class PlutoAdvancedSelect extends PlutoElement {
 													>
 														${option.text}
 													</li>`;
-											  })
+												})
 											: html`<li class="adv-select-option-none">
 													${this.searchError || __("No options found")}
-											  </li>`}
+												</li>`}
 									</ul>
 								</div>
-						  `
+							`
 						: ""}
 				</div>
 				${this.error ? html`<div class="error-message">${this.error}</div>` : ""}
@@ -756,3 +844,4 @@ Pluto.assign("pluto-textarea", PlutoTextarea);
 Pluto.assign("pluto-select", PlutoSelect);
 Pluto.assign("pluto-checkbox", PlutoCheckbox);
 Pluto.assign("pluto-radio", PlutoRadio);
+Pluto.assign("pluto-file-input", PlutoFileInput);

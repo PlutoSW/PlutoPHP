@@ -227,7 +227,7 @@ HTML;
             $stub = <<<HTML
 @extends('app')
 
-@section('title', 'CRM - {$className} View')
+@section('title', 'PlutoPHP - {$className} View')
 @section('content')
 <h1>{$className} View</h1>
 @endsection

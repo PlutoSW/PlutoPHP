@@ -6,14 +6,14 @@
 	font-style: normal;
 }
 :root {
-	--pluto-primary-color: #007bff;
+	--pluto-primary-color: #406093;
 	--pluto-secondary-color: #6c757d;
 	--pluto-success-color: #28a745;
 	--pluto-danger-color: #dc3545;
 	--pluto-warning-color: #ffc107;
 	--pluto-info-color: #17a2b8;
 
-	--pluto-primary-color-dark: #0056b3;
+	--pluto-primary-color-dark: #172033;
 	--pluto-secondary-color-dark: #545b62;
 	--pluto-success-color-dark: #1e7e34;
 	--pluto-danger-color-dark: #b02a37;
