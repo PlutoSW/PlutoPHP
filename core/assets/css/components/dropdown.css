@@ -51,7 +51,7 @@
 	z-index: 100;
 	display: flex;
 	flex-direction: column;
-	left: -65px;
+	right: 0px;
 }
 
 /* Direct children that are items */
@@ -65,10 +65,19 @@
 	border: none;
 	text-align: left;
 	font-size: 0.9rem;
-	transition: background-color 0.15s, color 0.15s;
+	transition:
+		background-color 0.15s,
+		color 0.15s;
 }
 
-::slotted(*:hover) {
+::slotted(*:not(.dropdown-divider):hover) {
 	background-color: var(--pluto-bg-dark);
 	color: var(--pluto-text-color-dark);
+}
+::slotted(.dropdown-divider) {
+	height: 1px;
+	background-color: var(--pluto-border-color);
+	margin: calc(var(--pluto-padding) * 0.3) 0;
+	border: none;
+	padding: unset;
 }

@@ -13,6 +13,7 @@ class PlutoUI
 
     public function core_styles($style = null)
     {
+        $stls = [];
         if ($style) {
             if (str_contains($style, 'layout/')) {
                 $content = file_get_contents(BASE_PATH . '/core/assets/css/' . $style);
@@ -21,17 +22,19 @@ class PlutoUI
             }
         } else {
             $content = file_get_contents(BASE_PATH . '/core/assets/css/Pluto.css');
+            $stls[] = BASE_PATH . '/core/assets/css/layout/layout.css';
             $content .= file_get_contents(BASE_PATH . '/core/assets/css/layout/layout.css');
         }
 
 
         //replace @import to content
-        $content = preg_replace_callback('/@import\s+(?:url\([\'"]?([^\'"]+)[\'"]?\)|[\'"]([^\'"]+)[\'"]);/', function ($matches) {
+        $content = preg_replace_callback('/@import\s+(?:url\([\'"]?([^\'"]+)[\'"]?\)|[\'"]([^\'"]+)[\'"]);/', function ($matches) use (&$stls) {
             $url = $matches[1] ?? $matches[2];
             if (str_contains($url, '/core/style/')) {
                 $file = str_replace('/core/style/', '', $url);
                 $path = BASE_PATH . '/core/assets/css/' . $file;
-                if (file_exists($path)) {
+                if (file_exists($path) && !in_array($path, $stls)) {
+                    $stls[] = $path;
                     return file_get_contents($path);
                 }
             }

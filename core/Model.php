@@ -104,6 +104,16 @@ class Model implements JsonSerializable
         return $count > 0;
     }
 
+    public function softDelete(): bool
+    {
+        $pk = static::$primaryKey;
+        if (!isset($this->attributes[$pk])) return false;
+        if (\method_exists(static::class, 'beforeDelete')) static::beforeDelete($this);
+        $count = static::query()->where($pk, '=', $this->attributes[$pk])->update(['deleted_at' => date('Y-m-d H:i:s')]);
+        if (\method_exists(static::class, 'afterDelete')) static::afterDelete($this);
+        return $count > 0;
+    }
+
     public function __get($k)
     {
 
