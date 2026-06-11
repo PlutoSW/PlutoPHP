@@ -12,7 +12,6 @@ A lightweight, modern PHP framework designed for rapid development. PlutoPHP lev
 
 *   **Attribute-Based Routing:** Define your routes directly on your controller methods. No more separate route files!
 *   **MVC Architecture:** A clean and organized structure based on the Model-View-Controller pattern.
-*   **Reactive Web Components with Pluto.js:** A minimal-footprint JavaScript library for building interactive UIs with custom HTML tags.
 *   **Powerful CLI Tool:** A built-in `pluto` command-line tool to generate controllers, models, views, and even full modules.
 *   **Database Migrations:** Version control for your database schema.
 *   **Blade-like Template Engine:** Use familiar syntax like `@extends`, `@section`, and `@yield` in your `.phtml` view files.
@@ -264,89 +263,6 @@ You can control the component by calling its methods. Push your script to the `j
         closeBtn.addEventListener('click', () => myModal.hide());
     });
 </script>
-@endpush
-```
-
-This same pattern of using custom tags, attributes, and slots applies to other components provided by Pluto.js, such as `<pluto-accordion>` and `<pluto-tabs>`.
-
-#### Example: Using `<pluto-card>` and `<pluto-input>`
-
-Cards are versatile containers for content. You can combine them with other components like inputs and buttons to build forms.
-
-**`app/Views/users/create.phtml`**
-```html
-@extends('app')
-
-@section('content')
-    <pluto-card header-title="Create New User">
-
-        <p>Please fill out the form below to register a new user.</p>
-
-        <pluto-input label="Full Name" name="fullname" placeholder="e.g., John Doe"></pluto-input>
-        <pluto-input label="Email Address" type="email" name="email" placeholder="e.g., user@example.com"></pluto-input>
-
-        <div slot="footer">
-            <pluto-button label="Register User" variant="success"></pluto-button>
-        </div>
-    </pluto-card>
-@endsection
-```
-
-#### Creating Your Own Reactive Components
-
-Pluto.js makes it easy to create your own custom HTML tags. This is a powerful way to encapsulate complex HTML, CSS, and JavaScript logic into reusable components.
-
-Let's create a simple `<user-profile>` component.
-
-**1. Create the Component's JavaScript File:**
-
-Create a new file, for example, in `public/js/components/UserProfile.js`.
-
-```javascript
-// public/js/components/UserProfile.js
-
-class UserProfile extends PlutoElement {
-    // Define properties that can be passed as attributes
-    static get props() {
-        return {
-            name: { type: String },
-            role: { type: String }
-        };
-    }
-
-    // Render the component's HTML
-    render() {
-        return html`
-            <div class="profile-card">
-                <h3>${this.name}</h3>
-                <p>Role: ${this.role}</p>
-            </div>
-        `;
-    }
-}
-
-// Register the custom element with the browser
-Pluto.assign('user-profile', UserProfile);
-```
-
-**2. Use the Component in a View:**
-
-Now you can use `<user-profile>` in any of your `.phtml` files. Just make sure to include the component's JavaScript file.
-
-**`app/Views/some-page.phtml`**
-```html
-@extends('app')
-
-@section('content')
-    <h1>User Details</h1>
-
-    <user-profile name="Jane Doe" role="Administrator"></user-profile>
-    <user-profile name="John Smith" role="Editor"></user-profile>
-@endsection
-
-@push('js')
-    {{-- Import the main Pluto.js library and your new component --}}
-    <script type="module" src="/public/js/components/UserProfile.js"></script>
 @endpush
 ```
 
